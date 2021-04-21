@@ -118,20 +118,14 @@ Limitations
 Installation
 ============
 
-.. The package is `available in melpa <https://melpa.org/#/hl-prog-extra>`__ as ``hl-prog-extra``.
+The package is `available in melpa <https://melpa.org/#/hl-prog-extra>`__ as ``hl-prog-extra``.
 
 This is currently installable via straight.
 
 .. code-block:: elisp
 
    (use-package hl-prog-extra
-     :commands (hl-prog-extra-mode)
-
-     :straight
-     (hl-prog-extra
-       :type git
-       :host gitlab
-       :repo "ideasman42/hl-prog-extra"))
+     :commands (hl-prog-extra-mode))
 
 
 Further Work
