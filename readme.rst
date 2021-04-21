@@ -15,7 +15,7 @@ While this can be used to highlight arbitrary expressions, common use cases incl
 - Literal text using quotes or back-ticks.
 - Tags such as ``TODO``, ``FIXME`` etc.
 
-Since projects projects have their own conventions for adding structured text in comments
+Since projects have their own conventions for adding structured text in comments
 this package aims to support customized highlighting in a few lines.
 
 
