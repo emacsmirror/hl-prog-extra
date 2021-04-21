@@ -62,7 +62,11 @@
     ;; Match `http://xyz' (URL)
     '("\\bhttps?://[^[:blank:]]*" 0 comment font-lock-constant-face)
     ;; Match `<email@address.com>' email address.
-    '("<\\([[:alnum:]\\._-]+@[[:alnum:]\\._-]+\\)>" 1 comment font-lock-constant-face))
+    '("<\\([[:alnum:]\\._-]+@[[:alnum:]\\._-]+\\)>" 1 comment font-lock-constant-face)
+
+    ;; Highlight `TODO` or `TODO(text): and similar.
+    '("\\<\\(TODO\\|NOTE\\)\\(([^)+]+)\\)?" 0 comment font-lock-constant-face)
+    '("\\<\\(FIXME\\|XXX\\|WARNING\\|BUG\\)\\(([^)+]+)\\)?" 0 comment font-lock-warning-face))
   "Lists that match faces (context face regex regex-group)
 
 `regex':
