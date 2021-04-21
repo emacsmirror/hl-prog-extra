@@ -131,6 +131,8 @@ This is currently installable via straight.
 Further Work
 ============
 
+- Support literal colors as an alternative to the ``face`` argument.
+
 - Elements could optionally be made into links,
   allowing project specific but-tracker tickets to open URL's when clicked on for e.g.
 
