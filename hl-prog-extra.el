@@ -65,8 +65,16 @@
     '("<\\([[:alnum:]\\._-]+@[[:alnum:]\\._-]+\\)>" 1 comment font-lock-constant-face)
 
     ;; Highlight `TODO` or `TODO(text): and similar.
-    '("\\<\\(TODO\\|NOTE\\)\\(([^)+]+)\\)?" 0 comment font-lock-constant-face)
-    '("\\<\\(FIXME\\|XXX\\|WARNING\\|BUG\\)\\(([^)+]+)\\)?" 0 comment font-lock-warning-face))
+    '
+    ("\\<\\(TODO\\|NOTE\\)\\(([^)+]+)\\)?"
+      0
+      comment
+      '(:background "#006000" :foreground "#FFFFFF"))
+    '
+    ("\\<\\(FIXME\\|XXX\\|WARNING\\|BUG\\)\\(([^)+]+)\\)?"
+      0
+      comment
+      '(:background "#800000" :foreground "#FFFFFF")))
   "Lists that match faces (context face regex regex-group)
 
 `regex':
@@ -273,12 +281,13 @@ Tables are aligned with SYN-REGEX-LIST."
                     t)
 
                   ;; Check `face'
-                  ((not (facep face))
+                  ((not (or (facep face) (listp face)))
                     (message
-                      "%s: 4th (face) expected a symbol, string or face %S is not known! (at %d)"
-                      item-error-prefix
-                      face
-                      item-index)
+                      (concat
+                        "%s: 4th (face) expected a symbol, string, face or "
+                        "list of face properties. "
+                        "%S is not known! (at %d)")
+                      item-error-prefix face item-index)
                     t)
 
                   ;; No error.

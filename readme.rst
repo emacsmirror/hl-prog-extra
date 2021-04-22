@@ -52,7 +52,8 @@ Customization
       This limits the highlighting to only these parts of the text,
       where ``nil`` is used for anything that doesn't match a comment or string.
    :face:
-      The face to apply.
+      The face to apply as a symbol, a string or a face property list, for example:
+      ``'(:background "#666600" :foreground "#FFFFFF")``.
 
    This defaults to matching URL's and email addresses.
 
@@ -130,8 +131,6 @@ This is currently installable via straight.
 
 Further Work
 ============
-
-- Support literal colors as an alternative to the ``face`` argument.
 
 - Elements could optionally be made into links,
   allowing project specific but-tracker tickets to open URL's when clicked on for e.g.
