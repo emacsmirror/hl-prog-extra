@@ -84,6 +84,7 @@ This is a more involved example that defines it's own matches, only loading on s
 
    (use-package hl-prog-extra
      :commands (hl-prog-extra-mode)
+     :config
      (setq hl-prog-extra-list
        (list
          ;; Match `some.text` as a constant.
@@ -91,7 +92,7 @@ This is a more involved example that defines it's own matches, only loading on s
          ;; Match http://xyz (URL).
          '("\\bhttps?://[^[:blank:]]*" 0 comment font-lock-constant-face)
          ;; Match <email@name.foo> email address.
-         '("<\\([[:alnum:]\\._-]+@[[:alnum:]\\._-]+\\)>" 1 comment font-lock-constant-face)))))
+         '("<\\([[:alnum:]\\._-]+@[[:alnum:]\\._-]+\\)>" 1 comment font-lock-constant-face))))
 
    ;; Enable for modes.
    (add-hook 'python-mode-hook
