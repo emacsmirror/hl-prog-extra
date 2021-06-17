@@ -463,9 +463,16 @@ Tables are aligned with SYN-REGEX-LIST."
   "Enable the option `hl-prog-extra-mode' where possible."
   (when
     (and
+      ;; Not already enabled.
       (not hl-prog-extra-mode)
+      ;; Not in the mini-buffer.
       (not (minibufferp))
+      ;; Not a special mode (package list, tabulated data ... etc)
+      ;; Instead the buffer is likely derived from `text-mode' or `prog-mode'.
+      (not (derived-mode-p 'special-mode))
+      ;; Not explicitly ignored.
       (not (memq major-mode hl-prog-extra-global-ignore-modes))
+      ;; Optionally check if a function is used.
       (or
         (null hl-prog-extra-global-ignore-buffer)
         (if (functionp hl-prog-extra-global-ignore-buffer)
