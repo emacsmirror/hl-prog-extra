@@ -378,10 +378,30 @@ Tables are aligned with SYN-REGEX-LIST."
                     (save-excursion
                       (setq state-at-pt-next
                         (parse-partial-sexp (point) bound nil nil state-at-pt 'syntax-table))
-                      (point))))
+                      (point)))
+
+                  (bound-context-clamp nil))
+
+                ;; Without this, the beginning of a comment is seen as code,
+                ;; in practice this means C-style comments such as `/*XXX*/',
+                ;; end up considering the first two characters as code.
+                ;; This causes problems if we want to highlight operators,
+                ;; eg: `*' or `/' characters.
+                ;; Avoid this by further clamping the context not to step
+                ;; into the beginning of a comment or string.
+                ;; Note that this introduces 'gaps', where the beginnings of
+                ;; comments can't be matched.
+                ;; Properly adjusting all beginnings and ends ends up being quite
+                ;; complex since state isn't maintained between calls to this function.
+                ;; So unless there is an important use-case for this, accept the limitation since
+                ;; not being able to properly match symbols in code is a much larger limitation.
+                (when (or (nth 3 state-at-pt-next) (nth 4 state-at-pt-next))
+                  (let ((comment-or-string-start (nth 8 state-at-pt-next)))
+                    (when (<= (point) comment-or-string-start)
+                      (setq bound-context-clamp comment-or-string-start))))
 
                 (cond
-                  ((re-search-forward re-context bound-context t)
+                  ((re-search-forward re-context (or bound-context-clamp bound-context) t)
                     (setq found t)
                     (pcase-let*
                       ( ;; The `uniq-index' is always needed so the original font can be found
@@ -404,7 +424,12 @@ Tables are aligned with SYN-REGEX-LIST."
                       (hl-prog-extra--match-index-set
                         (marker-position beg-final)
                         (marker-position end-final)
-                        (aref face-table uniq-index))))
+                        (aref face-table uniq-index)))
+
+                    (when bound-context-clamp
+                      ;; If the clamped bounds is met, step to the un-clamped bounds.
+                      (when (>= (point) bound-context-clamp)
+                        (goto-char bound-context))))
 
                   ;; Not found, skip to the next context.
                   (t
