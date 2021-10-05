@@ -500,9 +500,11 @@ Tables are aligned with SYN-REGEX-LIST."
       ;; Optionally check if a function is used.
       (or
         (null hl-prog-extra-global-ignore-buffer)
-        (if (functionp hl-prog-extra-global-ignore-buffer)
-          (not (funcall hl-prog-extra-global-ignore-buffer (current-buffer)))
-          nil)))
+        (cond
+          ((functionp hl-prog-extra-global-ignore-buffer)
+            (not (funcall hl-prog-extra-global-ignore-buffer (current-buffer))))
+          (t
+            nil))))
     (hl-prog-extra-mode 1)))
 
 ;;;###autoload
