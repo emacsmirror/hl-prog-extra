@@ -55,6 +55,10 @@
 ;; ---------------------------------------------------------------------------
 ;; Custom VarIables
 
+(defgroup hl-prog-extra nil
+  "Custom additional user-defined faces for comments/strings or code."
+  :group 'faces)
+
 ;; Default to URL's and email addresses, avoid adding too many here
 ;; as users may want to extend to this list for their own purposes.
 (defcustom hl-prog-extra-list
@@ -99,13 +103,11 @@ Modifying this while variable `hl-prog-extra-mode' is enabled requires calling
         (const :tag "Comment" :value comment)
         (const :tag "String" :value string)
         (const :tag "Other" :value nil))
-      face))
-  :group 'hl-prog-extra)
+      face)))
 
 (defcustom hl-prog-extra-global-ignore-modes nil
   "List of major-modes to exclude when `hl-prog-extra' has been enabled globally."
-  :type '(repeat symbol)
-  :group 'hl-prog-extra)
+  :type '(repeat symbol))
 
 (defvar-local hl-prog-extra-global-ignore-buffer nil
   "When non-nil, Global `hl-prog-extra' will not be enabled for this buffer.
@@ -511,8 +513,7 @@ Tables are aligned with SYN-REGEX-LIST."
 (define-globalized-minor-mode
   global-hl-prog-extra-mode
   hl-prog-extra-mode
-  hl-prog-extra--mode-turn-on
-  :group 'hl-prog-extra)
+  hl-prog-extra--mode-turn-on)
 
 (provide 'hl-prog-extra)
 ;;; hl-prog-extra.el ends here
