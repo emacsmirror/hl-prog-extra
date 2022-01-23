@@ -327,7 +327,7 @@ Tables are aligned with SYN-REGEX-LIST."
                     (push regex-fmt re-comment))
                   ((eq context 'string)
                     (push regex-fmt re-string))
-                  ((null nil)
+                  ((null context)
                     (push regex-fmt re-rest))
                   (t ;; Checked for above.
                     (error "Invalid context %S" context)))))))
