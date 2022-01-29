@@ -51,6 +51,8 @@ Customization
       A symbol in: ``'comment``, ``'string`` or ``nil``
       This limits the highlighting to only these parts of the text,
       where ``nil`` is used for anything that doesn't match a comment or string.
+
+      A list of these symbols is also supported (allowing a single item to match multiple contexts).
    :face:
       The face to apply as a symbol, a string or a face property list, for example:
       ``'(:background "#666600" :foreground "#FFFFFF")``.

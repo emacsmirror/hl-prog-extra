@@ -89,6 +89,9 @@
   A symbol in: 'comment, 'string or nil
   This limits the highlighting to only these parts of the text,
   where nil is used for anything that doesn't match a comment or string.
+
+  A list of these symbols is also supported
+  (allowing a single item to match multiple contexts).
 `face':
   The face to apply.
 
@@ -102,7 +105,9 @@ Modifying this while variable `hl-prog-extra-mode' is enabled requires calling
       (choice
         (const :tag "Comment" :value comment)
         (const :tag "String" :value string)
-        (const :tag "Other" :value nil))
+        (const :tag "Other" :value nil)
+        ;; A list of choices is also supported.
+        (repeat symbol))
       face)))
 
 (defcustom hl-prog-extra-global-ignore-modes nil
@@ -228,6 +233,11 @@ Tables are aligned with SYN-REGEX-LIST."
 
       (dolist (item syn-regex-list)
         (pcase-let ((`(,re ,re-subexpr ,context ,face) item))
+          ;; Ensure the context is a list (users may provide a single symbol).
+          ;; Supporting both is nice as it allows multiples contexts to be used at once.
+          (unless (and context (listp context))
+            (setq context (list context)))
+
           (let
             ( ;; Validate inputs.
               ;;
@@ -266,20 +276,34 @@ Tables are aligned with SYN-REGEX-LIST."
                       item-index)
                     t)
 
-                  ;; Check `context'.
-                  ((not (or (null context) (symbolp context)))
+                  ;; Check `context' (coerced into a list or left as nil).
+                  ((not (listp context))
                     (message
-                      "%s: 3rd expected a symbol or nil! (at %d)"
+                      "%s: 3rd (context) expected a symbol, a list of symbols or nil!) (at %d)"
                       item-error-prefix
-                      item-index)
-                    t)
-                  ((not (or (memq context item-context-valid-items)))
-                    (message
-                      "%s: 4th (context), unexpected symbol %S, expected %S or nil! (at %d)"
-                      item-error-prefix
-                      context
-                      item-context-valid-items
-                      item-index)
+                      item-index))
+                  ;; Check that all items in the list are symbols (includes nil).
+                  ( ;; If the list is non-empty, there is some unexpected expression.
+                    (delq
+                      t
+                      (mapcar
+                        (lambda (context-symbol)
+                          (cond
+                            ((memq context-symbol item-context-valid-items)
+                              t)
+                            (t
+                              (message
+                                (concat
+                                  "%s: 3rd (context) unexpected symbol %S, "
+                                  "expected a value in %S! "
+                                  "(at %d)")
+                                item-error-prefix
+                                context-symbol
+                                item-context-valid-items
+                                item-index)
+                              nil)))
+                        context))
+
                     t)
 
                   ;; Check `face'
@@ -322,15 +346,17 @@ Tables are aligned with SYN-REGEX-LIST."
                   (push face-index face-table)))
 
               (let ((regex-fmt (format "\\(?%d:%s\\)" (1+ uniq-index) re)))
-                (cond
-                  ((eq context 'comment)
-                    (push regex-fmt re-comment))
-                  ((eq context 'string)
-                    (push regex-fmt re-string))
-                  ((null context)
-                    (push regex-fmt re-rest))
-                  (t ;; Checked for above.
-                    (error "Invalid context %S" context)))))))
+                (dolist (context-symbol context)
+                  (cond
+                    ((eq context-symbol 'comment)
+                      (push regex-fmt re-comment))
+                    ((eq context-symbol 'string)
+                      (push regex-fmt re-string))
+                    ((null context-symbol)
+                      (push regex-fmt re-rest))
+                    (t ;; Checked for above.
+                      (error "Invalid context %S" context-symbol))))))))
+
         (setq item-index (1+ item-index)))
 
       (list
