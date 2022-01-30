@@ -48,33 +48,38 @@ Customization
    The main variable used to set highlighting,
    this is a list of lists representing ``(regex regex-subexpr context face)``
 
-   :regex:
+   ``regex``
       The regular expression to match.
-   :regex-subexpr:
+   ``regex-subexpr``
       Group to use when highlighting the expression (zero for the entire expression).
-   :context:
-      A symbol in:
+   ``context``
+      A symbol (or list of symbols) in:
 
-      ``'comment``
-         All comments (both ``comment-only`` & ``comment-doc``).
-      ``'comment-only``
-         Only non-documentation comments.
-      ``'comment-doc``
-         Only documentation comments.
-      ``'string``
-         All strings (both ``string-only`` & ``string-doc``).
-      ``'string-only``
-         Only non-documentation strings.
-      ``'string-doc``
-         Documentation strings.
-      ``nil``
-         Non comments or strings.
+      .. list-table::
+         :header-rows: 1
+
+         - - Symbol
+           - Description
+         - - ``'comment``
+           - All comments (both ``comment-only`` & ``comment-doc``).
+         - - ``'comment-only``
+           -  Only non-documentation comments.
+         - - ``'comment-doc``
+           - Only documentation comments.
+         - - ``'string``
+           - All strings (both ``string-only`` & ``string-doc``).
+         - - ``'string-only``
+           - Only non-documentation strings.
+         - - ``'string-doc``
+           - Documentation strings.
+         - - ``nil``
+           - Non comments or strings.
 
       This limits the highlighting to only these parts of the text,
       where ``nil`` is used for anything that doesn't match a comment or string.
 
       A list of these symbols is also supported (allowing an entry to match multiple contexts).
-   :face:
+   ``face``
       The face to apply as a symbol, a string or a face property list, for example:
       ``'(:background "#666600" :foreground "#FFFFFF")``.
 
