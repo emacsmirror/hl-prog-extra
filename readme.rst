@@ -31,9 +31,14 @@ Usage
 
 This package exposes the following functions.
 
-- ``hl-prog-extra-mode`` (enable the buffer local mode).
-- ``hl-prog-extra-refresh`` (run this so customization is updated while the mode is active).
-- ``global-hl-prog-extra-mode`` (enable the mode globally).
+``hl-prog-extra-mode``
+   Enable the buffer local mode.
+``hl-prog-extra-refresh``
+   Run this so customization is updated while the mode is active.
+``hl-prog-extra-preset``
+   Load a preset associated with the current major-mode (when available), see: the presets section below.
+``global-hl-prog-extra-mode``
+   Enable the mode globally.
 
 
 Customization
@@ -68,12 +73,15 @@ Customization
       This limits the highlighting to only these parts of the text,
       where ``nil`` is used for anything that doesn't match a comment or string.
 
-      A list of these symbols is also supported (allowing a single item to match multiple contexts).
+      A list of these symbols is also supported (allowing an entry to match multiple contexts).
    :face:
       The face to apply as a symbol, a string or a face property list, for example:
       ``'(:background "#666600" :foreground "#FFFFFF")``.
 
    This defaults to matching URL's and email addresses.
+
+``hl-prog-extra-preset`` nil
+   When non-nil, include presets for the current major-mode (when available).
 
 ``hl-prog-extra-global-ignore-modes`` nil
    A list of modes that won't enable highlighting from ``global-hl-prog-extra-mode``.
@@ -83,6 +91,43 @@ Customization
 
    This may also be a function that takes a single buffer argument,
    where returning ``nil`` will enable highlighting anything else will not.
+
+
+Presets
+-------
+
+Optionally you may use presets included with this package.
+This is done to provide useful highlighting associated with specific languages.
+
+If you wish to use presets, when the variable ``hl-prog-extra-preset`` is non-nil
+they are included when available.
+
+Otherwise you may call a function which returns presets that can be used to build ``hl-prog-extra-list`` yourself.
+
+The following function returns a list of values associated with a major mode.
+
+``hl-prog-extra-preset`` with arguments ``(major-mode quiet .. args)``
+
+   Optional arguments:
+
+   ``major-mode``
+      The major mode to load a preset for (as a string), this defaults to the current major mode.
+   ``quiet``
+      No message when there is no preset for the ``major-mode``.
+
+   ``args``
+      The remaining arguments can be used to control the presets.
+      Keyword value style arguments are to be used with common argument (for example) ``:no-string-escape``.
+
+      See the preset function's doc-string for details.
+
+Currently presets are included for:
+
+- ``c-mode``
+- ``lua-mode``
+- ``python-mode``
+
+Presets for other modes are welcome.
 
 
 Example

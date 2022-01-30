@@ -122,6 +122,10 @@ Modifying this while variable `hl-prog-extra-mode' is enabled requires calling
         (repeat symbol))
       face)))
 
+(defcustom hl-prog-extra-preset nil
+  "Include the default preset for the major modes (when available)."
+  :type 'boolean)
+
 (defcustom hl-prog-extra-global-ignore-modes nil
   "List of major-modes to exclude when `hl-prog-extra' has been enabled globally."
   :type '(repeat symbol))
@@ -548,6 +552,55 @@ Tables are aligned with SYN-REGEX-LIST."
 
 
 ;; ---------------------------------------------------------------------------
+;; Presets
+
+;;;###autoload
+(defun hl-prog-extra-preset (&rest args)
+  "Load a preset for current mode.
+ARGS the first two arguments are positional,
+The first is MODE-VALUE to override the current `major-mode'.
+The second is QUIET, when non-nil, don't show a message
+when the preset isn't found.
+The rest are expected to be keyword arguments,
+to control the behavior of each preset,
+see it's documentation for available keywords."
+  (let
+    (
+      (mode-value nil)
+      (quiet nil)
+      (args-positional t)
+      (args-count 0))
+
+    (while (and args args-positional)
+      (let ((arg (car args)))
+        (cond
+          ((keywordp arg)
+            ;; Found a keyword argument, break.
+            (setq args-positional nil))
+          (t
+            (pcase args-count
+              (0 (setq mode-value arg))
+              (1 (setq quiet arg))
+              (_ (error "Only two positional arguments must be given")))
+            (setq args-count (1+ args-count))
+            (setq args (cdr args))))))
+
+    (unless mode-value
+      (setq mode-value (symbol-name major-mode)))
+    (let ((preset-sym (intern (concat "hl-prog-extra-preset-" mode-value))))
+      (when
+        (condition-case err
+          (progn
+            (require preset-sym)
+            t)
+          (error
+            (unless quiet
+              (message "hl-prog-extra: preset %S not found! (%S)" mode-value err))
+            nil))
+        (apply preset-sym args)))))
+
+
+;; ---------------------------------------------------------------------------
 ;; Define Minor Mode
 
 (defun hl-prog-extra-mode-enable ()
@@ -556,11 +609,15 @@ Tables are aligned with SYN-REGEX-LIST."
   (when hl-prog-extra--data
     (font-lock-remove-keywords nil (cdr hl-prog-extra--data)))
 
-  (let ((info (hl-prog-extra--precompute-regex hl-prog-extra-list)))
-    (let ((keywords (hl-prog-extra--precompute-keywords (nth 1 info))))
-      (font-lock-add-keywords nil keywords 'append)
-      (font-lock-flush)
-      (setq hl-prog-extra--data (cons info keywords)))))
+  (let ((list-with-preset hl-prog-extra-list))
+    (when hl-prog-extra-preset
+      ;; Optionally add presets to the end of the list.
+      (setq list-with-preset (append list-with-preset (hl-prog-extra-preset nil t))))
+    (let ((info (hl-prog-extra--precompute-regex list-with-preset)))
+      (let ((keywords (hl-prog-extra--precompute-keywords (nth 1 info))))
+        (font-lock-add-keywords nil keywords 'append)
+        (font-lock-flush)
+        (setq hl-prog-extra--data (cons info keywords))))))
 
 (defun hl-prog-extra-mode-disable ()
   "Turn off option `hl-prog-extra-mode' for the current buffer."
@@ -616,6 +673,7 @@ Tables are aligned with SYN-REGEX-LIST."
   global-hl-prog-extra-mode
   hl-prog-extra-mode
   hl-prog-extra--mode-turn-on)
+
 
 (provide 'hl-prog-extra)
 ;;; hl-prog-extra.el ends here
