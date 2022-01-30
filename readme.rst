@@ -48,7 +48,23 @@ Customization
    :regex-subexpr:
       Group to use when highlighting the expression (zero for the entire expression).
    :context:
-      A symbol in: ``'comment``, ``'string`` or ``nil``
+      A symbol in:
+
+      ``'comment``
+         All comments (both ``comment-only`` & ``comment-doc``).
+      ``'comment-only``
+         Only non-documentation comments.
+      ``'comment-doc``
+         Only documentation comments.
+      ``'string``
+         All strings (both ``string-only`` & ``string-doc``).
+      ``'string-only``
+         Only non-documentation strings.
+      ``'string-doc``
+         Documentation strings.
+      ``nil``
+         Non comments or strings.
+
       This limits the highlighting to only these parts of the text,
       where ``nil`` is used for anything that doesn't match a comment or string.
 

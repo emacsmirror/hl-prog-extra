@@ -86,7 +86,15 @@
 `regex-subexpr':
   Group to use when highlighting the expression (zero for the whole match).
 `context':
-  A symbol in: 'comment, 'string or nil
+  A symbol in:
+  - 'comment - All comments.
+  - 'comment-only - Only non-documentation comments.
+  - 'comment-doc - Only documentation comments.
+  - 'string - All strings.
+  - 'string-only - Only non-documentation strings.
+  - 'string-doc - Documentation strings.
+  - nil - Non comments or strings.
+
   This limits the highlighting to only these parts of the text,
   where nil is used for anything that doesn't match a comment or string.
 
@@ -103,8 +111,12 @@ Modifying this while variable `hl-prog-extra-mode' is enabled requires calling
     (list
       regexp integer
       (choice
-        (const :tag "Comment" :value comment)
-        (const :tag "String" :value string)
+        (const :tag "Comment (Any)" :value comment)
+        (const :tag "Comment (Only)" :value comment-only)
+        (const :tag "Comment (Doc)" :value comment-doc)
+        (const :tag "String (Any)" :value string)
+        (const :tag "String (Only)" :value string-only)
+        (const :tag "String (Doc)" :value string-doc)
         (const :tag "Other" :value nil)
         ;; A list of choices is also supported.
         (repeat symbol))
@@ -212,9 +224,15 @@ Tables are aligned with SYN-REGEX-LIST."
   (let ((len (length syn-regex-list)))
     (let
       ( ;; Group regex by the context they search in.
-        (re-comment (list))
-        (re-string (list))
+        (re-comment-only (list))
+        (re-comment-doc (list))
+        (re-string-only (list))
+        (re-string-doc (list))
         (re-rest (list))
+        ;; Store variables for the doc/only variables are different.
+        ;; This is useful since calculating this information is expensive.
+        (is-complex-comment nil)
+        (is-complex-string nil)
 
         ;; Unique faces, use to build the arguments for font locking.
         (face-list (list))
@@ -229,7 +247,11 @@ Tables are aligned with SYN-REGEX-LIST."
         ;; Error checking.
         (item-error-prefix "hl-prog-extra, error parsing `hl-prog-extra-list'")
         (item-index 0)
-        (item-context-valid-items (list 'comment 'string nil)))
+        (item-context-valid-items
+          (list
+            'comment 'comment-only 'comment-doc ;; Comments.
+            'string 'string-only 'string-doc ;; Strings.
+            nil)))
 
       (dolist (item syn-regex-list)
         (pcase-let ((`(,re ,re-subexpr ,context ,face) item))
@@ -349,9 +371,23 @@ Tables are aligned with SYN-REGEX-LIST."
                 (dolist (context-symbol context)
                   (cond
                     ((eq context-symbol 'comment)
-                      (push regex-fmt re-comment))
+                      (push regex-fmt re-comment-only)
+                      (push regex-fmt re-comment-doc))
+                    ((eq context-symbol 'comment-only)
+                      (setq is-complex-comment t)
+                      (push regex-fmt re-comment-only))
+                    ((eq context-symbol 'comment-doc)
+                      (setq is-complex-comment t)
+                      (push regex-fmt re-comment-doc))
                     ((eq context-symbol 'string)
-                      (push regex-fmt re-string))
+                      (push regex-fmt re-string-only)
+                      (push regex-fmt re-string-doc))
+                    ((eq context-symbol 'string-only)
+                      (setq is-complex-string t)
+                      (push regex-fmt re-string-only))
+                    ((eq context-symbol 'string-doc)
+                      (setq is-complex-string t)
+                      (push regex-fmt re-string-doc))
                     ((null context-symbol)
                       (push regex-fmt re-rest))
                     (t ;; Checked for above.
@@ -365,15 +401,42 @@ Tables are aligned with SYN-REGEX-LIST."
           (lambda (re)
             (when re
               (mapconcat #'identity (nreverse re) "\\|")))
-          (list re-comment re-string re-rest))
+          (list re-comment-only re-comment-doc re-string-only re-string-doc re-rest))
 
         (vconcat (nreverse face-list))
         (vconcat (nreverse uniq-list))
-        (vconcat (nreverse face-table))))))
+        (vconcat (nreverse face-table))
+        is-complex-comment
+        is-complex-string))))
 
 
 ;; ---------------------------------------------------------------------------
 ;; Internal Font Lock Match
+
+(defun hl-prog-extra--check-face-at-point (pos face-test)
+  "Return t when FACE-TEST is used at POS."
+  ;; NOTE: use `get-text-property' instead of `get-char-property' so overlays are excluded,
+  ;; since this causes overlays with `hl-line-mode' (for example) to mask other faces.
+  ;; If we want to include faces of overlays, this could be supported.
+  (let ((faceprop (get-text-property pos 'face)))
+    (cond
+      ((facep faceprop)
+        (when (eq faceprop face-test)
+          t))
+      ((face-list-p faceprop)
+        (let ((found nil))
+          (while faceprop
+            (when (eq (pop faceprop) face-test)
+              (setq found t)
+              (setq faceprop nil)))
+          found))
+      (t
+        nil))))
+
+(defun hl-prog-extra--is-doc-state-p (state)
+  "Return t, when the comment or string is a doc-string or doc-comment at STATE."
+  (let ((start (nth 8 state)))
+    (hl-prog-extra--check-face-at-point start 'font-lock-doc-face)))
 
 (defun hl-prog-extra--match (bound)
   "MATCHER for the font lock keyword in `hl-prog-extra--data', until BOUND."
@@ -383,17 +446,30 @@ Tables are aligned with SYN-REGEX-LIST."
       (state-at-pt (syntax-ppss))
       (state-at-pt-next nil)
       (info (car hl-prog-extra--data)))
-
-    (pcase-let ((`(,`(,re-comment ,re-string ,re-rest) ,_ ,uniq-array ,face-table) info))
+    (pcase-let
+      (
+        (` ;; Unpack (car info)
+          (,`(,re-comment-only ,re-comment-doc ,re-string-only ,re-string-doc ,re-rest)
+            ;; Unpack (cdr info)
+            ,_ ,uniq-array ,face-table ,is-complex-comment ,is-complex-string)
+          info))
       (while (and (null found) (< (point) bound))
         (let
           (
             (re-context
               (cond
                 ((nth 3 state-at-pt)
-                  re-string)
+                  (cond
+                    ((and is-complex-string (hl-prog-extra--is-doc-state-p state-at-pt))
+                      re-string-doc)
+                    (t
+                      re-string-only)))
                 ((nth 4 state-at-pt)
-                  re-comment)
+                  (cond
+                    ((and is-complex-comment (hl-prog-extra--is-doc-state-p state-at-pt))
+                      re-comment-doc)
+                    (t
+                      re-comment-only)))
                 (t
                   re-rest))))
 
