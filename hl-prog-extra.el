@@ -440,7 +440,8 @@ Tables are aligned with SYN-REGEX-LIST."
       (info (car hl-prog-extra--data)))
     (pcase-let
       (
-        (` ;; Unpack (car info)
+        ( ;; Unpack (car info)
+          `
           (,`(,re-comment-only ,re-comment-doc ,re-string-only ,re-string-doc ,re-rest)
             ;; Unpack (cdr info)
             ,_ ,uniq-array ,face-table ,is-complex-comment ,is-complex-string)
