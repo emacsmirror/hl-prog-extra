@@ -437,7 +437,9 @@ Tables are aligned with SYN-REGEX-LIST."
       (found nil)
       (state-at-pt (syntax-ppss))
       (state-at-pt-next nil)
-      (info (car hl-prog-extra--data)))
+      (info (car hl-prog-extra--data))
+      ;; Always case sensitive.
+      (case-fold-search nil))
     (pcase-let
       (
         ( ;; Unpack (car info)
