@@ -1,5 +1,5 @@
 ;;; hl-prog-extra-preset-lua-mode.el --- Lua preset -*- lexical-binding: t -*-
-;; URL: https://gitlab.com/ideasman42/emacs-hl-prog-extra
+;; URL: https://codeberg.com/ideasman42/emacs-hl-prog-extra
 ;; Version: 0.1
 ;; Package-Requires: ((emacs "26.2"))
 
