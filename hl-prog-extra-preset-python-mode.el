@@ -59,12 +59,12 @@
             "\\("
             ;; "\n" and similar single escape characters.
             "[abnrtfv\"\\\\]\\|"
-            ;; "\x" number.
-            "x[0-9]+\\|"
-            ;; "\u" unicode.
-            "u[0-9a-fA-F]+\\|"
-            ;; "\x000".
-            "[0-9]+\\|"
+            ;; "\x00" number (always exactly two).
+            "x[0-9a-zA-Z]\\{2\\}\\|"
+            ;; "\u0000" unicode.
+            "u[0-9a-fA-F]\\{4\\}\\|"
+            ;; "\000" octal.
+            "[0-7]{1,3}\\|"
             ;; "\N{NAMED UNICODE}".
             "N{[A-Z\\s\\-]+}\\|"
             ;; Trailing slash to escape a newline (continue string).

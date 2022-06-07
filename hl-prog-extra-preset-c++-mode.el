@@ -50,11 +50,11 @@
             ;; "\n" and similar single escape characters.
             "[abefnrtv\"\\\\]\\|"
             ;; "\x" number.
-            "x[0-9a-fA-F]+\\|"
+            "x[0-9a-fA-F]\\{2\\}\\|"
             ;; "\u" unicode.
-            "[uU][0-9a-fA-F]+\\|"
+            "[uU][0-9a-fA-F]\\{4\\}\\|"
             ;; "\x000".
-            "[0-9]+"
+            "[0-7]\\{1,3\\}"
             ;; End group.
             "\\)")
           0 'string 'escape-glyph)
