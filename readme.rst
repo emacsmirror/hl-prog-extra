@@ -52,6 +52,8 @@ Customization
       The regular expression to match.
    ``regex-subexpr``
       Group to use when highlighting the expression (zero for the entire expression).
+
+      May also be a list of groups, see the `Multi-Group Matching`_ example.
    ``context``
       A symbol (or list of symbols) in:
 
@@ -82,6 +84,8 @@ Customization
    ``face``
       The face to apply as a symbol, a string or a face property list, for example:
       ``'(:background "#666600" :foreground "#FFFFFF")``.
+
+      May also be a list of faces, see the `Multi-Group Matching`_ example.
 
    This defaults to matching URL's and email addresses.
 
@@ -168,6 +172,40 @@ This is a more involved example that defines it's own matches, only loading on s
 
    (add-hook 'sh-mode-hook
      (lambda () (hl-prog-extra-mode))
+
+
+Multi-Group Matching
+^^^^^^^^^^^^^^^^^^^^
+
+Withing a single expression match you may wish to assign multiple faces.
+
+This is supported by using lists for ``regex-subexpr`` & ``face`` settings.
+
+Both lists need to be the same length where each sub-expression matches the corresponding face.
+
+This example configuration shows how multiple matches can be used with tags in comments such as
+``NOTE(my name)`` can show text within the parenthesis with a different color:
+
+.. code-block:: elisp
+
+   (setq hl-prog-extra-list
+     (list
+       "\\<\\(NOTE\\)\\((\\([^)+]+\\))\\)?" '(0 3) 'comment
+       (list
+         '(:background "#006000" :foreground "#FFFFFF")
+         '(:background "#006000" :foreground "#BBBBBB")))
+
+     (list
+       "\\<\\(TODO\\|WORKAROUND\\)\\((\\([^)+]+\\))\\)?" '(0 3) 'comment
+       (list
+         '(:background "#707000" :foreground "#FFFFFF")
+         '(:background "#707000" :foreground "#BBBBBB")))
+
+     (list
+       "\\<\\(FIXME\\|XXX\\|WARNING\\)\\((\\([^)+]+\\))\\)?" '(0 3) 'comment
+       (list
+         '(:background "#800000" :foreground "#FFFFFF")
+         '(:background "#800000" :foreground "#BBBBBB"))))
 
 
 Details
