@@ -52,20 +52,20 @@
 (defcustom hl-prog-extra-list
   (list
     ;; Match `http://xyz' (URL)
-    '("\\<https?://[^[:blank:]]*" 0 comment font-lock-constant-face)
+    (list "\\<https?://[^[:blank:]]*" 0 'comment 'font-lock-constant-face)
     ;; Match `<email@address.com>' email address.
-    '("<\\([[:alnum:]\\._-]+@[[:alnum:]\\._-]+\\)>" 1 comment font-lock-constant-face)
+    (list "<\\([[:alnum:]\\._-]+@[[:alnum:]\\._-]+\\)>" 1 'comment 'font-lock-constant-face)
 
     ;; Highlight `TODO` or `TODO(text): and similar.
-    '
-    ("\\<\\(TODO\\|NOTE\\)\\(([^)+]+)\\)?"
+    (list
+      "\\<\\(TODO\\|NOTE\\)\\(([^)+]+)\\)?"
       0
-      comment
+      'comment
       '(:background "#006000" :foreground "#FFFFFF"))
-    '
-    ("\\<\\(FIXME\\|XXX\\|WARNING\\|BUG\\)\\(([^)+]+)\\)?"
+    (list
+      "\\<\\(FIXME\\|XXX\\|WARNING\\|BUG\\)\\(([^)+]+)\\)?"
       0
-      comment
+      'comment
       '(:background "#800000" :foreground "#FFFFFF")))
   "Lists that match faces (context face regex regex-group)
 
@@ -180,7 +180,12 @@ check this buffer.")
       (let ((face (aref face-vector i)))
 
         ;; Without this, a face that is not yet loaded will raise an error in font lock.
-        (when (and (symbolp face) (not (boundp face)))
+        (when
+          (or
+            ;; Quote unquoted symbol.
+            (and (symbolp face) (not (boundp face)))
+            ;; Quote unquoted list.
+            (and (consp face) (not (eq 'quote (car face)))))
           (setq face (list 'quote face)))
 
         ;; The first number is the regex-group to match (starting at 1).
