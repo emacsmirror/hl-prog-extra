@@ -205,7 +205,7 @@ check this buffer.")
 (defun hl-prog-extra--precompute-regex (syn-regex-list)
   "Pre-compute data from the SYN-REGEX-LIST.
 
-Return (re-string face-table) where:
+Return (regex-string, face-list, uniq-list) where:
 
 regex-string:
   A list of 3 strings containing grouped regex statements from SYN-REGEX-LIST.
@@ -214,8 +214,6 @@ regex-string:
   Unique faces.
 `uniq-list':
   Unique data for each regex group.
-`face-table':
-  Map the regex group index to the `face-list'.
 
 Tables are aligned with SYN-REGEX-LIST."
   (let ((len (length syn-regex-list)))
@@ -238,8 +236,6 @@ Tables are aligned with SYN-REGEX-LIST."
         ;; Each element be a list if other kinds of data needs to be referenced.
         (uniq-list (list))
         (uniq-list-contents (make-hash-table :test 'eql :size len))
-        ;; Map the regex-group index to the face-list index.
-        (face-table (list))
 
         ;; Error checking.
         (item-error-prefix "hl-prog-extra, error parsing `hl-prog-extra-list'")
@@ -359,10 +355,8 @@ Tables are aligned with SYN-REGEX-LIST."
                 (setq uniq-index (gethash key uniq-list-contents))
                 (unless uniq-index
                   (setq uniq-index (hash-table-count uniq-list-contents))
-                  (push re-subexpr uniq-list)
-                  (puthash key uniq-index uniq-list-contents)
-                  ;; Unrelated to maintaining `uniq-list-contents'.
-                  (push face-index face-table)))
+                  (push (cons re-subexpr face-index) uniq-list)
+                  (puthash key uniq-index uniq-list-contents)))
 
               (let ((regex-fmt (format "\\(?%d:%s\\)" (1+ uniq-index) re)))
                 (dolist (context-symbol context)
@@ -402,7 +396,6 @@ Tables are aligned with SYN-REGEX-LIST."
 
         (vconcat (nreverse face-list))
         (vconcat (nreverse uniq-list))
-        (vconcat (nreverse face-table))
         is-complex-comment
         is-complex-string))))
 
@@ -451,7 +444,7 @@ Tables are aligned with SYN-REGEX-LIST."
           `
           (,`(,re-comment-only ,re-comment-doc ,re-string-only ,re-string-doc ,re-rest)
             ;; Unpack (cdr info)
-            ,_ ,uniq-array ,face-table ,is-complex-comment ,is-complex-string)
+            ,_ ,uniq-array ,is-complex-comment ,is-complex-string)
           info))
       (while (and (null found) (< (point) bound))
         (let
@@ -513,22 +506,22 @@ Tables are aligned with SYN-REGEX-LIST."
                         (`(,match-tail . ,uniq-index) (hl-prog-extra--match-first (match-data)))
                         (`(,beg-final ,end-final) match-tail))
 
-                      ;; When sub-expressions are used, they need to be extracted.
-                      (let ((sub-expr (aref uniq-array uniq-index)))
-                        (when sub-expr
-                          (pcase-let ((`(,beg ,end) (nthcdr (* 2 sub-expr) match-tail)))
-                            ;; The configuration may have an out of range `sub-expr'
-                            ;; just ignore this and use the whole expression since raising
-                            ;; an error during font-locking in this case isn't practical.
-                            (when (and beg end)
-                              (setq beg-final beg)
-                              (setq end-final end)))))
+                      (let ((uniq-data (aref uniq-array uniq-index)))
+                        (pcase-let ((`(,sub-expr . ,face-index) uniq-data))
+                          (when sub-expr
+                            (pcase-let ((`(,beg ,end) (nthcdr (* 2 sub-expr) match-tail)))
+                              ;; The configuration may have an out of range `sub-expr'
+                              ;; just ignore this and use the whole expression since raising
+                              ;; an error during font-locking in this case isn't practical.
+                              (when (and beg end)
+                                (setq beg-final beg)
+                                (setq end-final end))))
 
-                      ;; Remap the absolute table to the unique face.
-                      (hl-prog-extra--match-index-set
-                        (marker-position beg-final)
-                        (marker-position end-final)
-                        (aref face-table uniq-index)))
+                          ;; Remap the absolute table to the unique face.
+                          (hl-prog-extra--match-index-set
+                            (marker-position beg-final)
+                            (marker-position end-final)
+                            face-index))))
 
                     (when bound-context-clamp
                       ;; If the clamped bounds is met, step to the un-clamped bounds.
