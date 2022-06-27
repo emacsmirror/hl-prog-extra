@@ -1,5 +1,5 @@
 ;;; hl-prog-extra-preset-python-mode.el --- Python preset -*- lexical-binding: t -*-
-;; URL: https://codeberg.com/ideasman42/emacs-hl-prog-extra
+;; URL: https://codeberg.org/ideasman42/emacs-hl-prog-extra
 ;; Version: 0.1
 ;; Package-Requires: ((emacs "26.2"))
 
