@@ -399,98 +399,98 @@ Tables are aligned with SYN-REGEX-LIST."
         (item-error-prefix "hl-prog-extra, error parsing `hl-prog-extra-list'")
         (item-index 0))
 
-      (dolist (item syn-regex-list)
-        (pcase-let ((`(,re ,re-subexpr ,context ,face) item))
-          ;; Ensure the context is a list (users may provide a single symbol).
-          ;; Supporting both is nice as it allows multiples contexts to be used at once.
-          (unless (and context (listp context))
-            (setq context (list context)))
+      (pcase-dolist (`(,re ,re-subexpr ,context ,face) syn-regex-list)
 
-          (let
-            ( ;; Be strict here since any errors on font-locking are difficult for users to debug.
-              (error-msg (hl-prog-extra--validate-keyword-item (list re re-subexpr context face)))
+        ;; Ensure the context is a list (users may provide a single symbol).
+        ;; Supporting both is nice as it allows multiples contexts to be used at once.
+        (unless (and context (listp context))
+          (setq context (list context)))
 
-              ;; Handle cases with multiple sub-expressions.
-              (is-multi nil)
-              (uniq-index-multi nil)
+        (let
+          ( ;; Be strict here since any errors on font-locking are difficult for users to debug.
+            (error-msg (hl-prog-extra--validate-keyword-item (list re re-subexpr context face)))
 
-              (uniq-index nil)
-              (face-index nil))
+            ;; Handle cases with multiple sub-expressions.
+            (is-multi nil)
+            (uniq-index-multi nil)
 
-            (cond
-              (error-msg
-                (message "%s: %s (item %d)" item-error-prefix error-msg item-index))
-              (t ;; No error.
+            (uniq-index nil)
+            (face-index nil))
 
-                (cond
-                  ((and re-subexpr (listp re-subexpr))
-                    (when (<= 1 (length re-subexpr))
-                      (setq is-multi t)))
-                  (t ;; Move into a list to avoid duplicate code-paths.
-                    (setq re-subexpr (list re-subexpr))
-                    (setq face (list face))))
+          (cond
+            (error-msg
+              (message "%s: %s (item %d)" item-error-prefix error-msg item-index))
+            (t ;; No error.
 
-                (while re-subexpr
-                  (let
-                    (
-                      (re-sub (pop re-subexpr))
-                      (face-sub (pop face)))
+              (cond
+                ((and re-subexpr (listp re-subexpr))
+                  (when (<= 1 (length re-subexpr))
+                    (setq is-multi t)))
+                (t ;; Move into a list to avoid duplicate code-paths.
+                  (setq re-subexpr (list re-subexpr))
+                  (setq face (list face))))
 
-                    ;; Note that a zero `re-sub' is not the same as nil,
-                    ;; since a zero group is needed for matching the first level of parenthisis.
+              (while re-subexpr
+                (let
+                  (
+                    (re-sub (pop re-subexpr))
+                    (face-sub (pop face)))
 
-                    (let ((key face-sub))
-                      (setq face-index (gethash key face-list-contents))
+                  ;; Note that a zero `re-sub' is not the same as nil,
+                  ;; since a zero group is needed for matching the first level of parenthisis.
 
-                      (unless face-index
-                        (setq face-index (hash-table-count face-list-contents))
-                        (push face-sub face-list)
-                        (puthash key face-index face-list-contents)))
+                  (let ((key face-sub))
+                    (setq face-index (gethash key face-list-contents))
 
-                    (let ((key (cons face-sub re-sub)))
-                      (setq uniq-index (gethash key uniq-list-contents))
-                      (unless uniq-index
-                        (setq uniq-index (hash-table-count uniq-list-contents))
-                        (when is-multi
-                          (push uniq-index uniq-index-multi))
+                    (unless face-index
+                      (setq face-index (hash-table-count face-list-contents))
+                      (push face-sub face-list)
+                      (puthash key face-index face-list-contents)))
 
-                        (push (cons re-sub face-index) uniq-list)
-                        (puthash key uniq-index uniq-list-contents)))))
-
-                (when is-multi
-                  (setq uniq-index-multi (sort uniq-index-multi #'>))
-                  (let ((key uniq-index-multi))
+                  (let ((key (cons face-sub re-sub)))
                     (setq uniq-index (gethash key uniq-list-contents))
                     (unless uniq-index
                       (setq uniq-index (hash-table-count uniq-list-contents))
-                      (push (vconcat uniq-index-multi) uniq-list)
-                      (puthash key uniq-index uniq-list-contents))))
+                      (when is-multi
+                        (push uniq-index uniq-index-multi))
 
-                (let ((regex-fmt (format "\\(?%d:%s\\)" (1+ uniq-index) re)))
-                  (dolist (context-symbol context)
-                    (cond
-                      ((eq context-symbol 'comment)
-                        (push regex-fmt re-comment-only)
-                        (push regex-fmt re-comment-doc))
-                      ((eq context-symbol 'comment-only)
-                        (setq is-complex-comment t)
-                        (push regex-fmt re-comment-only))
-                      ((eq context-symbol 'comment-doc)
-                        (setq is-complex-comment t)
-                        (push regex-fmt re-comment-doc))
-                      ((eq context-symbol 'string)
-                        (push regex-fmt re-string-only)
-                        (push regex-fmt re-string-doc))
-                      ((eq context-symbol 'string-only)
-                        (setq is-complex-string t)
-                        (push regex-fmt re-string-only))
-                      ((eq context-symbol 'string-doc)
-                        (setq is-complex-string t)
-                        (push regex-fmt re-string-doc))
-                      ((null context-symbol)
-                        (push regex-fmt re-rest))
-                      (t ;; Checked for above.
-                        (error "Invalid context %S" context-symbol)))))))))
+                      (push (cons re-sub face-index) uniq-list)
+                      (puthash key uniq-index uniq-list-contents)))))
+
+              (when is-multi
+                (setq uniq-index-multi (sort uniq-index-multi #'>))
+                (let ((key uniq-index-multi))
+                  (setq uniq-index (gethash key uniq-list-contents))
+                  (unless uniq-index
+                    (setq uniq-index (hash-table-count uniq-list-contents))
+                    (push (vconcat uniq-index-multi) uniq-list)
+                    (puthash key uniq-index uniq-list-contents))))
+
+              (let ((regex-fmt (format "\\(?%d:%s\\)" (1+ uniq-index) re)))
+                (dolist (context-symbol context)
+                  (cond
+                    ((eq context-symbol 'comment)
+                      (push regex-fmt re-comment-only)
+                      (push regex-fmt re-comment-doc))
+                    ((eq context-symbol 'comment-only)
+                      (setq is-complex-comment t)
+                      (push regex-fmt re-comment-only))
+                    ((eq context-symbol 'comment-doc)
+                      (setq is-complex-comment t)
+                      (push regex-fmt re-comment-doc))
+                    ((eq context-symbol 'string)
+                      (push regex-fmt re-string-only)
+                      (push regex-fmt re-string-doc))
+                    ((eq context-symbol 'string-only)
+                      (setq is-complex-string t)
+                      (push regex-fmt re-string-only))
+                    ((eq context-symbol 'string-doc)
+                      (setq is-complex-string t)
+                      (push regex-fmt re-string-doc))
+                    ((null context-symbol)
+                      (push regex-fmt re-rest))
+                    (t ;; Checked for above.
+                      (error "Invalid context %S" context-symbol))))))))
 
         (setq item-index (1+ item-index)))
 
