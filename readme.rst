@@ -75,7 +75,7 @@ Customization
          - - ``'string-doc``
            - Documentation strings.
          - - ``nil``
-           - Non comments or strings.
+           - Non comments or strings (other source-code).
 
       This limits the highlighting to only these parts of the text,
       where ``nil`` is used for anything that doesn't match a comment or string.
