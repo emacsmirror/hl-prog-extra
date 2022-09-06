@@ -167,11 +167,8 @@ This is a more involved example that defines it's own matches, only loading on s
          '("<\\([[:alnum:]\\._-]+@[[:alnum:]\\._-]+\\)>" 1 comment font-lock-constant-face))))
 
    ;; Enable for modes.
-   (add-hook 'python-mode-hook
-     (lambda () (hl-prog-extra-mode))
-
-   (add-hook 'sh-mode-hook
-     (lambda () (hl-prog-extra-mode))
+   (add-hook 'python-mode-hook #'hl-prog-extra-mode)
+   (add-hook 'sh-mode-hook #'hl-prog-extra-mode)
 
 
 Multi-Group Matching
