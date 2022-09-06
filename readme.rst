@@ -132,6 +132,7 @@ The following function returns a list of values associated with a major mode.
 
 Currently presets are included for:
 
+- ``c++-mode``
 - ``c-mode``
 - ``lua-mode``
 - ``python-mode``
@@ -224,8 +225,6 @@ Installation
 ============
 
 The package is `available in melpa <https://melpa.org/#/hl-prog-extra>`__ as ``hl-prog-extra``.
-
-This is currently installable via straight.
 
 .. code-block:: elisp
 
