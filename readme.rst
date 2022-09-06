@@ -232,6 +232,14 @@ The package is `available in melpa <https://melpa.org/#/hl-prog-extra>`__ as ``h
      :commands (hl-prog-extra-mode))
 
 
+Hints
+=====
+
+- The package `sidecar-locals <https://codeberg.org/ideasman42/emacs-sidecar-locals>`__
+  provides out-of-source configuration, this is a convenient alternative to file or directory-locals
+  that makes it convenient to add project-specific highlighting.
+
+
 Further Work
 ============
 
