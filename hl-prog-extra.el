@@ -795,7 +795,7 @@ see it's documentation for available keywords."
 ;; ---------------------------------------------------------------------------
 ;; Define Minor Mode
 
-(defun hl-prog-extra-mode-enable ()
+(defun hl-prog-extra--mode-enable ()
   "Turn on option `hl-prog-extra-mode' for the current buffer."
   ;; Paranoid.
   (when hl-prog-extra--data
@@ -811,7 +811,7 @@ see it's documentation for available keywords."
         (font-lock-flush)
         (setq hl-prog-extra--data (cons info keywords))))))
 
-(defun hl-prog-extra-mode-disable ()
+(defun hl-prog-extra--mode-disable ()
   "Turn off option `hl-prog-extra-mode' for the current buffer."
   (when hl-prog-extra--data
     (font-lock-remove-keywords nil (cdr hl-prog-extra--data))
@@ -824,8 +824,8 @@ see it's documentation for available keywords."
 (defun hl-prog-extra-refresh ()
   "Update internal data after changing `hl-prog-extra-list'."
   (when hl-prog-extra--data
-    (hl-prog-extra-mode-disable)
-    (hl-prog-extra-mode-enable)))
+    (hl-prog-extra--mode-disable)
+    (hl-prog-extra--mode-enable)))
 
 ;;;###autoload
 (define-minor-mode hl-prog-extra-mode
@@ -835,9 +835,9 @@ see it's documentation for available keywords."
 
   (cond
     (hl-prog-extra-mode
-      (hl-prog-extra-mode-enable))
+      (hl-prog-extra--mode-enable))
     (t
-      (hl-prog-extra-mode-disable))))
+      (hl-prog-extra--mode-disable))))
 
 (defun hl-prog-extra--mode-turn-on ()
   "Enable the option `hl-prog-extra-mode' where possible."
