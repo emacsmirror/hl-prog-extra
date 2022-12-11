@@ -236,8 +236,8 @@ check this buffer.")
             ((and re-subexpr (listp re-subexpr))
               (funcall validate-re-subexpr-list-fn re-subexpr))
             (t
-              (format
-                "expected an integer or a list of integers, not a %S!" (type-of re-subexpr))))))
+              (format "expected an integer or a list of integers, not a %S!"
+                (type-of re-subexpr))))))
 
       ;; ------------------------------
       ;; Check `context', 3rd argument.
@@ -250,8 +250,7 @@ check this buffer.")
               (throw 'error (format "expected a symbol or nil!, not a %S" (type-of context))))
             (unless (memq context item-context-valid-items)
               (throw 'error
-                (format
-                  "unexpected symbol %S, expected a value in %S!"
+                (format "unexpected symbol %S, expected a value in %S!"
                   context
                   item-context-valid-items))))))
 
@@ -863,8 +862,7 @@ see it's documentation for available keywords."
     (hl-prog-extra-mode 1)))
 
 ;;;###autoload
-(define-globalized-minor-mode
-  global-hl-prog-extra-mode
+(define-globalized-minor-mode global-hl-prog-extra-mode
   hl-prog-extra-mode
   hl-prog-extra--mode-turn-on)
 
