@@ -55,22 +55,22 @@
 ;; as users may want to extend to this list for their own purposes.
 (defcustom hl-prog-extra-list
   (list
-    ;; Match `http://xyz' (URL)
-    (list "\\<https?://[^[:blank:]]*" 0 'comment 'font-lock-constant-face)
-    ;; Match `<email@address.com>' email address.
-    (list "<\\([[:alnum:]\\._-]+@[[:alnum:]\\._-]+\\)>" 1 'comment 'font-lock-constant-face)
+   ;; Match `http://xyz' (URL)
+   (list "\\<https?://[^[:blank:]]*" 0 'comment 'font-lock-constant-face)
+   ;; Match `<email@address.com>' email address.
+   (list "<\\([[:alnum:]\\._-]+@[[:alnum:]\\._-]+\\)>" 1 'comment 'font-lock-constant-face)
 
-    ;; Highlight `TODO` or `TODO(text): and similar.
-    (list
-      "\\<\\(TODO\\|NOTE\\)\\(([^)+]+)\\)?"
-      0
-      'comment
-      '(:background "#006000" :foreground "#FFFFFF"))
-    (list
-      "\\<\\(FIXME\\|XXX\\|WARNING\\|BUG\\)\\(([^)+]+)\\)?"
-      0
-      'comment
-      '(:background "#800000" :foreground "#FFFFFF")))
+   ;; Highlight `TODO` or `TODO(text): and similar.
+   (list
+    "\\<\\(TODO\\|NOTE\\)\\(([^)+]+)\\)?"
+    0
+    'comment
+    '(:background "#006000" :foreground "#FFFFFF"))
+   (list
+    "\\<\\(FIXME\\|XXX\\|WARNING\\|BUG\\)\\(([^)+]+)\\)?"
+    0
+    'comment
+    '(:background "#800000" :foreground "#FFFFFF")))
   "Lists that match faces (context face regex regex-group)
 
 `regex':
@@ -98,21 +98,20 @@
 Modifying this while variable `hl-prog-extra-mode' is enabled requires calling
 `hl-prog-extra-refresh'to update the internal state."
   :type
-  '
-  (repeat
+  '(repeat
     (list
-      regexp integer
-      (choice
-        (const :tag "Comment (Any)" :value comment)
-        (const :tag "Comment (Only)" :value comment-only)
-        (const :tag "Comment (Doc)" :value comment-doc)
-        (const :tag "String (Any)" :value string)
-        (const :tag "String (Only)" :value string-only)
-        (const :tag "String (Doc)" :value string-doc)
-        (const :tag "Other" :value nil)
-        ;; A list of choices is also supported.
-        (repeat symbol))
-      face)))
+     regexp integer
+     (choice
+      (const :tag "Comment (Any)" :value comment)
+      (const :tag "Comment (Only)" :value comment-only)
+      (const :tag "Comment (Doc)" :value comment-doc)
+      (const :tag "String (Any)" :value string)
+      (const :tag "String (Only)" :value string-only)
+      (const :tag "String (Doc)" :value string-doc)
+      (const :tag "Other" :value nil)
+      ;; A list of choices is also supported.
+      (repeat symbol))
+     face)))
 
 (defcustom hl-prog-extra-preset nil
   "Include the default preset for the major modes (when available)."
@@ -169,144 +168,144 @@ check this buffer.")
 (defun hl-prog-extra--regexp-valid-or-error (re)
   "Return nil if RE is not a valid regexp."
   (condition-case err
-    (prog1 nil
-      (string-match-p re ""))
+      (prog1 nil
+        (string-match-p re ""))
     (error (error-message-string err))))
 
 (defun hl-prog-extra--maybe-prefix (prefix msg)
   "Prefix MSG with PREFIX or return MSG when nil."
   (cond
-    ((null msg)
-      nil)
-    (t
-      (concat prefix msg))))
+   ((null msg)
+    nil)
+   (t
+    (concat prefix msg))))
 
 ;; ---------------------------------------------------------------------------
 ;; Pre-Compute Font Locking
 
 (defun hl-prog-extra--validate-keyword-item (item)
   "Validate ITEM, return an message or nil on success."
-  (let*
-    (
-      (item-context-valid-items
-        (list
-          'comment 'comment-only 'comment-doc ;; Comments.
-          'string 'string-only 'string-doc ;; Strings.
-          nil))
+  (let* ((item-context-valid-items
+          (list
+           'comment 'comment-only 'comment-doc ;; Comments.
+           'string 'string-only 'string-doc ;; Strings.
+           nil))
 
-      ;; ----------------------------
-      ;; Check `re', 1st argument.
+         ;; ----------------------------
+         ;; Check `re', 1st argument.
 
-      (validate-re-fn
-        (lambda (re)
-          (catch 'error
-            (when (not (stringp re))
-              (throw 'error (format "expected a string, not a %S!" (type-of re))))
+         (validate-re-fn
+          (lambda (re)
+            (catch 'error
+              (when (not (stringp re))
+                (throw 'error (format "expected a string, not a %S!" (type-of re))))
 
-            (let ((item-error (hl-prog-extra--regexp-valid-or-error re)))
-              (when item-error
-                (throw 'error (format "invalid regex \"%s\"" item-error)))))))
+              (let ((item-error (hl-prog-extra--regexp-valid-or-error re)))
+                (when item-error
+                  (throw 'error (format "invalid regex \"%s\"" item-error)))))))
 
-      ;; ---------------------------------
-      ;; Check `re-subexpr', 2nd argument.
+         ;; ---------------------------------
+         ;; Check `re-subexpr', 2nd argument.
 
-      (validate-re-subexpr-single-fn
-        (lambda (re-subexpr)
-          ;; `intergerp' ensured by caller.
-          (catch 'error
-            (when (< re-subexpr 0)
-              (throw 'error "cannot be negative!")))))
+         (validate-re-subexpr-single-fn
+          (lambda (re-subexpr)
+            ;; `intergerp' ensured by caller.
+            (catch 'error
+              (when (< re-subexpr 0)
+                (throw 'error "cannot be negative!")))))
 
-      (validate-re-subexpr-list-fn
-        (lambda (re-subexpr)
-          ;; `listp' ensured by caller.
-          (catch 'error
-            (dolist (re-subexpr-sub re-subexpr)
-              (unless (integerp re-subexpr-sub)
-                (throw 'error (format "expected an integer, not a %S!" (type-of re-subexpr-sub))))
-              (let ((error-msg (funcall validate-re-subexpr-single-fn re-subexpr-sub)))
-                (when error-msg
-                  (throw 'error error-msg)))))))
+         (validate-re-subexpr-list-fn
+          (lambda (re-subexpr)
+            ;; `listp' ensured by caller.
+            (catch 'error
+              (dolist (re-subexpr-sub re-subexpr)
+                (unless (integerp re-subexpr-sub)
+                  (throw 'error
+                         (format "expected an integer, not a %S!" (type-of re-subexpr-sub))))
+                (let ((error-msg (funcall validate-re-subexpr-single-fn re-subexpr-sub)))
+                  (when error-msg
+                    (throw 'error error-msg)))))))
 
-      (validate-re-subexpr-fn
-        (lambda (re-subexpr)
-          (cond
-            ((integerp re-subexpr)
+         (validate-re-subexpr-fn
+          (lambda (re-subexpr)
+            (cond
+             ((integerp re-subexpr)
               (funcall validate-re-subexpr-single-fn re-subexpr))
-            ((and re-subexpr (listp re-subexpr))
+             ((and re-subexpr (listp re-subexpr))
               (funcall validate-re-subexpr-list-fn re-subexpr))
-            (t
+             (t
               (format "expected an integer or a list of integers, not a %S!"
-                (type-of re-subexpr))))))
+                      (type-of re-subexpr))))))
 
-      ;; ------------------------------
-      ;; Check `context', 3rd argument.
+         ;; ------------------------------
+         ;; Check `context', 3rd argument.
 
-      (validate-context-single-fn
-        (lambda (context)
-          ;; Not `listp' ensured by caller.
-          (catch 'error
-            (unless (symbolp context)
-              (throw 'error (format "expected a symbol or nil!, not a %S" (type-of context))))
-            (unless (memq context item-context-valid-items)
-              (throw 'error
-                (format "unexpected symbol %S, expected a value in %S!"
-                  context
-                  item-context-valid-items))))))
+         (validate-context-single-fn
+          (lambda (context)
+            ;; Not `listp' ensured by caller.
+            (catch 'error
+              (unless (symbolp context)
+                (throw 'error (format "expected a symbol or nil!, not a %S" (type-of context))))
+              (unless (memq context item-context-valid-items)
+                (throw 'error
+                       (format "unexpected symbol %S, expected a value in %S!"
+                               context
+                               item-context-valid-items))))))
 
-      (validate-context-list-fn
-        (lambda (context)
-          ;; `listp' ensured by caller.
-          (catch 'error
-            (dolist (context-sub context)
-              (let ((error-msg (funcall validate-context-single-fn context-sub)))
-                (when error-msg
-                  (throw 'error error-msg)))))))
+         (validate-context-list-fn
+          (lambda (context)
+            ;; `listp' ensured by caller.
+            (catch 'error
+              (dolist (context-sub context)
+                (let ((error-msg (funcall validate-context-single-fn context-sub)))
+                  (when error-msg
+                    (throw 'error error-msg)))))))
 
-      (validate-context-fn
-        (lambda (context)
-          (cond
-            ((null context) ;; Do nothing (correct input).
+         (validate-context-fn
+          (lambda (context)
+            (cond
+             ((null context) ;; Do nothing (correct input).
               nil)
-            ((not (listp context))
+             ((not (listp context))
               (funcall validate-context-single-fn context))
-            ((listp context)
+             ((listp context)
               (funcall validate-context-list-fn context))
-            (t
+             (t
               (format "expected a list or symbol, not a %S!" (type-of context))))))
 
-      ;; ---------------------------
-      ;; Check `face', 4th argument.
+         ;; ---------------------------
+         ;; Check `face', 4th argument.
 
-      (validate-face-single-fn
-        (lambda (face)
-          (catch 'error
-            (when (not (or (facep face) (listp face)))
-              (throw 'error
-                (format
+         (validate-face-single-fn
+          (lambda (face)
+            (catch 'error
+              (when (not (or (facep face) (listp face)))
+                (throw
+                 'error
+                 (format
                   "expected a symbol, string, face or list of face properties. %S is not known!"
                   face))))))
 
-      (validate-face-list-fn
-        (lambda (face re-subexpr)
-          (catch 'error
-            (unless (and face (listp face))
-              (throw 'error (format "expected a list of faces, not %S" (type-of face))))
-            (dolist (face-sub face)
-              (let ((error-msg (funcall validate-face-single-fn face-sub)))
-                (when error-msg
-                  (throw 'error error-msg))))
+         (validate-face-list-fn
+          (lambda (face re-subexpr)
+            (catch 'error
+              (unless (and face (listp face))
+                (throw 'error (format "expected a list of faces, not %S" (type-of face))))
+              (dolist (face-sub face)
+                (let ((error-msg (funcall validate-face-single-fn face-sub)))
+                  (when error-msg
+                    (throw 'error error-msg))))
 
-            ;; Now check the face list is compatible with `re-subexpr'.
-            (when (not (eq (length re-subexpr) (length face)))
-              (throw 'error "list lengths do not match!")))))
+              ;; Now check the face list is compatible with `re-subexpr'.
+              (when (not (eq (length re-subexpr) (length face)))
+                (throw 'error "list lengths do not match!")))))
 
-      (validate-face-fn
-        (lambda (face re-subexpr)
-          (cond
-            ((not (listp re-subexpr))
+         (validate-face-fn
+          (lambda (face re-subexpr)
+            (cond
+             ((not (listp re-subexpr))
               (funcall validate-face-single-fn face))
-            (t ;; List.
+             (t ;; List.
               (funcall validate-face-list-fn face re-subexpr))))))
 
 
@@ -314,14 +313,14 @@ check this buffer.")
 
       ;; Return on the first error, or nil.
       (or
-        ;; Check `regex' (1st).
-        (hl-prog-extra--maybe-prefix "1st (regex) " (funcall validate-re-fn re))
-        ;; Check `re-subexpr' (2nd).
-        (hl-prog-extra--maybe-prefix "2nd (sub-expr) " (funcall validate-re-subexpr-fn re-subexpr))
-        ;; Check `context' (3rd), coerced into a list or left as nil.
-        (hl-prog-extra--maybe-prefix "3rd (context) " (funcall validate-context-fn context))
-        ;; Check `face' (4th).
-        (hl-prog-extra--maybe-prefix "4th (face) " (funcall validate-face-fn face re-subexpr))))))
+       ;; Check `regex' (1st).
+       (hl-prog-extra--maybe-prefix "1st (regex) " (funcall validate-re-fn re))
+       ;; Check `re-subexpr' (2nd).
+       (hl-prog-extra--maybe-prefix "2nd (sub-expr) " (funcall validate-re-subexpr-fn re-subexpr))
+       ;; Check `context' (3rd), coerced into a list or left as nil.
+       (hl-prog-extra--maybe-prefix "3rd (context) " (funcall validate-context-fn context))
+       ;; Check `face' (4th).
+       (hl-prog-extra--maybe-prefix "4th (face) " (funcall validate-face-fn face re-subexpr))))))
 
 
 (defun hl-prog-extra--precompute-keywords (face-vector)
@@ -340,12 +339,11 @@ check this buffer.")
       (let ((face (aref face-vector i)))
 
         ;; Without this, a face that is not yet loaded will raise an error in font lock.
-        (when
-          (or
-            ;; Quote unquoted symbol.
-            (and (symbolp face) (not (boundp face)))
-            ;; Quote unquoted list.
-            (and (consp face) (not (eq 'quote (car face)))))
+        (when (or
+               ;; Quote unquoted symbol.
+               (and (symbolp face) (not (boundp face)))
+               ;; Quote unquoted list.
+               (and (consp face) (not (eq 'quote (car face)))))
           (setq face (list 'quote face)))
 
         ;; The first number is the regex-group to match (starting at 1).
@@ -378,29 +376,29 @@ regex-string:
 Tables are aligned with SYN-REGEX-LIST."
   (let ((len (length syn-regex-list)))
     (let
-      ( ;; Group regex by the context they search in.
-        (re-comment-only (list))
-        (re-comment-doc (list))
-        (re-string-only (list))
-        (re-string-doc (list))
-        (re-rest (list))
-        ;; Store variables for the doc/only variables are different.
-        ;; This is useful since calculating this information is expensive.
-        (is-complex-comment nil)
-        (is-complex-string nil)
+        ( ;; Group regex by the context they search in.
+         (re-comment-only (list))
+         (re-comment-doc (list))
+         (re-string-only (list))
+         (re-string-doc (list))
+         (re-rest (list))
+         ;; Store variables for the doc/only variables are different.
+         ;; This is useful since calculating this information is expensive.
+         (is-complex-comment nil)
+         (is-complex-string nil)
 
-        ;; Unique faces, use to build the arguments for font locking.
-        (face-list (list))
-        (face-list-contents (make-hash-table :test 'eq :size len))
-        ;; Unique values aligned with the regex groups.
-        ;; Each element be a list if other kinds of data needs to be referenced.
-        (uniq-list (list))
-        ;; Use `equal` so vector can be used as keys.
-        (uniq-list-contents (make-hash-table :test 'equal :size len))
+         ;; Unique faces, use to build the arguments for font locking.
+         (face-list (list))
+         (face-list-contents (make-hash-table :test 'eq :size len))
+         ;; Unique values aligned with the regex groups.
+         ;; Each element be a list if other kinds of data needs to be referenced.
+         (uniq-list (list))
+         ;; Use `equal` so vector can be used as keys.
+         (uniq-list-contents (make-hash-table :test 'equal :size len))
 
-        ;; Error checking.
-        (item-error-prefix "hl-prog-extra, error parsing `hl-prog-extra-list'")
-        (item-index 0))
+         ;; Error checking.
+         (item-error-prefix "hl-prog-extra, error parsing `hl-prog-extra-list'")
+         (item-index 0))
 
       (pcase-dolist (`(,re ,re-subexpr ,context ,face) syn-regex-list)
 
@@ -410,105 +408,103 @@ Tables are aligned with SYN-REGEX-LIST."
           (setq context (list context)))
 
         (let
-          ( ;; Be strict here since any errors on font-locking are difficult for users to debug.
-            (error-msg (hl-prog-extra--validate-keyword-item (list re re-subexpr context face)))
+            ( ;; Be strict here since any errors on font-locking are difficult for users to debug.
+             (error-msg (hl-prog-extra--validate-keyword-item (list re re-subexpr context face)))
 
-            ;; Handle cases with multiple sub-expressions.
-            (is-multi nil)
-            (uniq-index-multi nil)
+             ;; Handle cases with multiple sub-expressions.
+             (is-multi nil)
+             (uniq-index-multi nil)
 
-            (uniq-index nil)
-            (face-index nil))
+             (uniq-index nil)
+             (face-index nil))
 
           (cond
-            (error-msg
-              (message "%s: %s (item %d)" item-error-prefix error-msg item-index))
-            (t ;; No error.
+           (error-msg
+            (message "%s: %s (item %d)" item-error-prefix error-msg item-index))
+           (t ;; No error.
 
-              (cond
-                ((and re-subexpr (listp re-subexpr))
-                  (when (<= 1 (length re-subexpr))
-                    (setq is-multi t)))
-                (t ;; Move into a list to avoid duplicate code-paths.
-                  (setq re-subexpr (list re-subexpr))
-                  (setq face (list face))))
+            (cond
+             ((and re-subexpr (listp re-subexpr))
+              (when (<= 1 (length re-subexpr))
+                (setq is-multi t)))
+             (t ;; Move into a list to avoid duplicate code-paths.
+              (setq re-subexpr (list re-subexpr))
+              (setq face (list face))))
 
-              (while re-subexpr
-                (let
-                  (
-                    (re-sub (pop re-subexpr))
+            (while re-subexpr
+              (let ((re-sub (pop re-subexpr))
                     (face-sub (pop face)))
 
-                  ;; Note that a zero `re-sub' is not the same as nil,
-                  ;; since a zero group is needed for matching the first level of parenthisis.
+                ;; Note that a zero `re-sub' is not the same as nil,
+                ;; since a zero group is needed for matching the first level of parenthisis.
 
-                  (let ((key face-sub))
-                    (setq face-index (gethash key face-list-contents))
+                (let ((key face-sub))
+                  (setq face-index (gethash key face-list-contents))
 
-                    (unless face-index
-                      (setq face-index (hash-table-count face-list-contents))
-                      (push face-sub face-list)
-                      (puthash key face-index face-list-contents)))
+                  (unless face-index
+                    (setq face-index (hash-table-count face-list-contents))
+                    (push face-sub face-list)
+                    (puthash key face-index face-list-contents)))
 
-                  (let ((key (cons face-sub re-sub)))
-                    (setq uniq-index (gethash key uniq-list-contents))
-                    (unless uniq-index
-                      (setq uniq-index (hash-table-count uniq-list-contents))
-                      (when is-multi
-                        (push uniq-index uniq-index-multi))
-
-                      (push (cons re-sub face-index) uniq-list)
-                      (puthash key uniq-index uniq-list-contents)))))
-
-              (when is-multi
-                (setq uniq-index-multi (sort uniq-index-multi #'>))
-                (let ((key uniq-index-multi))
+                (let ((key (cons face-sub re-sub)))
                   (setq uniq-index (gethash key uniq-list-contents))
                   (unless uniq-index
                     (setq uniq-index (hash-table-count uniq-list-contents))
-                    (push (vconcat uniq-index-multi) uniq-list)
-                    (puthash key uniq-index uniq-list-contents))))
+                    (when is-multi
+                      (push uniq-index uniq-index-multi))
 
-              (let ((regex-fmt (format "\\(?%d:%s\\)" (1+ uniq-index) re)))
-                (dolist (context-symbol context)
-                  (cond
-                    ((eq context-symbol 'comment)
-                      (push regex-fmt re-comment-only)
-                      (push regex-fmt re-comment-doc))
-                    ((eq context-symbol 'comment-only)
-                      (setq is-complex-comment t)
-                      (push regex-fmt re-comment-only))
-                    ((eq context-symbol 'comment-doc)
-                      (setq is-complex-comment t)
-                      (push regex-fmt re-comment-doc))
-                    ((eq context-symbol 'string)
-                      (push regex-fmt re-string-only)
-                      (push regex-fmt re-string-doc))
-                    ((eq context-symbol 'string-only)
-                      (setq is-complex-string t)
-                      (push regex-fmt re-string-only))
-                    ((eq context-symbol 'string-doc)
-                      (setq is-complex-string t)
-                      (push regex-fmt re-string-doc))
-                    ((null context-symbol)
-                      (push regex-fmt re-rest))
-                    (t ;; Checked for above.
-                      (error "Invalid context %S" context-symbol))))))))
+                    (push (cons re-sub face-index) uniq-list)
+                    (puthash key uniq-index uniq-list-contents)))))
+
+            (when is-multi
+              (setq uniq-index-multi (sort uniq-index-multi #'>))
+              (let ((key uniq-index-multi))
+                (setq uniq-index (gethash key uniq-list-contents))
+                (unless uniq-index
+                  (setq uniq-index (hash-table-count uniq-list-contents))
+                  (push (vconcat uniq-index-multi) uniq-list)
+                  (puthash key uniq-index uniq-list-contents))))
+
+            (let ((regex-fmt (format "\\(?%d:%s\\)" (1+ uniq-index) re)))
+              (dolist (context-symbol context)
+                (cond
+                 ((eq context-symbol 'comment)
+                  (push regex-fmt re-comment-only)
+                  (push regex-fmt re-comment-doc))
+                 ((eq context-symbol 'comment-only)
+                  (setq is-complex-comment t)
+                  (push regex-fmt re-comment-only))
+                 ((eq context-symbol 'comment-doc)
+                  (setq is-complex-comment t)
+                  (push regex-fmt re-comment-doc))
+                 ((eq context-symbol 'string)
+                  (push regex-fmt re-string-only)
+                  (push regex-fmt re-string-doc))
+                 ((eq context-symbol 'string-only)
+                  (setq is-complex-string t)
+                  (push regex-fmt re-string-only))
+                 ((eq context-symbol 'string-doc)
+                  (setq is-complex-string t)
+                  (push regex-fmt re-string-doc))
+                 ((null context-symbol)
+                  (push regex-fmt re-rest))
+                 (t ;; Checked for above.
+                  (error "Invalid context %S" context-symbol))))))))
 
         (setq item-index (1+ item-index)))
 
       (list
-        ;; Join all regex groups into single strings.
-        (mapcar
-          (lambda (re)
-            (when re
-              (mapconcat #'identity (nreverse re) "\\|")))
-          (list re-comment-only re-comment-doc re-string-only re-string-doc re-rest))
+       ;; Join all regex groups into single strings.
+       (mapcar
+        (lambda (re)
+          (when re
+            (mapconcat #'identity (nreverse re) "\\|")))
+        (list re-comment-only re-comment-doc re-string-only re-string-doc re-rest))
 
-        (vconcat (nreverse face-list))
-        (vconcat (nreverse uniq-list))
-        is-complex-comment
-        is-complex-string))))
+       (vconcat (nreverse face-list))
+       (vconcat (nreverse uniq-list))
+       is-complex-comment
+       is-complex-string))))
 
 
 ;; ---------------------------------------------------------------------------
@@ -521,18 +517,18 @@ Tables are aligned with SYN-REGEX-LIST."
   ;; If we want to include faces of overlays, this could be supported.
   (let ((faceprop (get-text-property pos 'face)))
     (cond
-      ((facep faceprop)
-        (when (eq faceprop face-test)
-          t))
-      ((face-list-p faceprop)
-        (let ((found nil))
-          (while faceprop
-            (when (eq (pop faceprop) face-test)
-              (setq found t)
-              (setq faceprop nil)))
-          found))
-      (t
-        nil))))
+     ((facep faceprop)
+      (when (eq faceprop face-test)
+        t))
+     ((face-list-p faceprop)
+      (let ((found nil))
+        (while faceprop
+          (when (eq (pop faceprop) face-test)
+            (setq found t)
+            (setq faceprop nil)))
+        found))
+     (t
+      nil))))
 
 (defun hl-prog-extra--is-doc-state-p (state)
   "Return t, when the comment or string is a doc-string or doc-comment at STATE."
@@ -541,154 +537,145 @@ Tables are aligned with SYN-REGEX-LIST."
 
 (defun hl-prog-extra--match-impl (bound)
   "MATCHER for the font lock keyword in `hl-prog-extra--data', until BOUND."
-  (let
-    (
-      (found nil)
-      (state-at-pt (syntax-ppss))
-      (state-at-pt-next nil)
-      (info (car hl-prog-extra--data))
-      ;; Always case sensitive.
-      (case-fold-search nil))
-    (pcase-let
-      (
-        ( ;; Unpack (car info)
-          `
-          (,`(,re-comment-only ,re-comment-doc ,re-string-only ,re-string-doc ,re-rest)
-            ;; Unpack (cdr info)
-            ,_ ,uniq-array ,is-complex-comment ,is-complex-string)
-          info))
+  (let ((found nil)
+        (state-at-pt (syntax-ppss))
+        (state-at-pt-next nil)
+        (info (car hl-prog-extra--data))
+        ;; Always case sensitive.
+        (case-fold-search nil))
+    (pcase-let (
+                ( ;; Unpack (car info)
+                 `(,`(,re-comment-only ,re-comment-doc ,re-string-only ,re-string-doc ,re-rest)
+                   ;; Unpack (cdr info)
+                   ,_ ,uniq-array ,is-complex-comment ,is-complex-string)
+                 info))
       (while (and (null found) (< (point) bound))
-        (let
-          (
-            (re-context
-              (cond
+        (let ((re-context
+               (cond
                 ((nth 3 state-at-pt)
-                  (cond
-                    ((and is-complex-string (hl-prog-extra--is-doc-state-p state-at-pt))
-                      re-string-doc)
-                    (t
-                      re-string-only)))
+                 (cond
+                  ((and is-complex-string (hl-prog-extra--is-doc-state-p state-at-pt))
+                   re-string-doc)
+                  (t
+                   re-string-only)))
                 ((nth 4 state-at-pt)
-                  (cond
-                    ((and is-complex-comment (hl-prog-extra--is-doc-state-p state-at-pt))
-                      re-comment-doc)
-                    (t
-                      re-comment-only)))
+                 (cond
+                  ((and is-complex-comment (hl-prog-extra--is-doc-state-p state-at-pt))
+                   re-comment-doc)
+                  (t
+                   re-comment-only)))
                 (t
-                  re-rest))))
+                 re-rest))))
 
           ;; Only search in the current context.
           (cond
-            (re-context
-              (let
-                (
-                  (bound-context
-                    (save-excursion
-                      (setq state-at-pt-next
-                        (parse-partial-sexp (point) bound nil nil state-at-pt 'syntax-table))
-                      (point)))
+           (re-context
+            (let ((bound-context
+                   (save-excursion
+                     (setq state-at-pt-next
+                           (parse-partial-sexp (point) bound nil nil state-at-pt 'syntax-table))
+                     (point)))
 
                   (bound-context-clamp nil))
 
-                ;; Without this, the beginning of a comment is seen as code,
-                ;; in practice this means C-style comments such as `/*XXX*/',
-                ;; end up considering the first two characters as code.
-                ;; This causes problems if we want to highlight operators,
-                ;; eg: `*' or `/' characters.
-                ;; Avoid this by further clamping the context not to step
-                ;; into the beginning of a comment or string.
-                ;; Note that this introduces 'gaps', where the beginnings of
-                ;; comments can't be matched.
-                ;; Properly adjusting all beginnings and ends ends up being quite
-                ;; complex since state isn't maintained between calls to this function.
-                ;; So unless there is an important use-case for this, accept the limitation since
-                ;; not being able to properly match symbols in code is a much larger limitation.
-                (when (or (nth 3 state-at-pt-next) (nth 4 state-at-pt-next))
-                  (let ((comment-or-string-start (nth 8 state-at-pt-next)))
-                    (when (<= (point) comment-or-string-start)
-                      (setq bound-context-clamp comment-or-string-start))))
+              ;; Without this, the beginning of a comment is seen as code,
+              ;; in practice this means C-style comments such as `/*XXX*/',
+              ;; end up considering the first two characters as code.
+              ;; This causes problems if we want to highlight operators,
+              ;; eg: `*' or `/' characters.
+              ;; Avoid this by further clamping the context not to step
+              ;; into the beginning of a comment or string.
+              ;; Note that this introduces 'gaps', where the beginnings of
+              ;; comments can't be matched.
+              ;; Properly adjusting all beginnings and ends ends up being quite
+              ;; complex since state isn't maintained between calls to this function.
+              ;; So unless there is an important use-case for this, accept the limitation since
+              ;; not being able to properly match symbols in code is a much larger limitation.
+              (when (or (nth 3 state-at-pt-next) (nth 4 state-at-pt-next))
+                (let ((comment-or-string-start (nth 8 state-at-pt-next)))
+                  (when (<= (point) comment-or-string-start)
+                    (setq bound-context-clamp comment-or-string-start))))
 
-                (cond
-                  ((re-search-forward re-context (or bound-context-clamp bound-context) t)
-                    (setq found t)
-                    (pcase-let*
-                      ( ;; The `uniq-index' is always needed so the original font can be found
-                        ;; and so it's possible to check for a sub-expression.
-                        (`(,match-tail . ,uniq-index) (hl-prog-extra--match-first (match-data)))
-                        (`(,beg-final ,end-final) match-tail))
+              (cond
+               ((re-search-forward re-context (or bound-context-clamp bound-context) t)
+                (setq found t)
+                (pcase-let*
+                    ( ;; The `uniq-index' is always needed so the original font can be found
+                     ;; and so it's possible to check for a sub-expression.
+                     (`(,match-tail . ,uniq-index) (hl-prog-extra--match-first (match-data)))
+                     (`(,beg-final ,end-final) match-tail))
 
-                      (let ((uniq-data (aref uniq-array uniq-index)))
+                  (let ((uniq-data (aref uniq-array uniq-index)))
+                    (cond
+                     ;; This is really an indirection (list of unique indices).
+                     ;; `uniq-data' is a list of indices into `uniq-array'.
+                     ((vectorp uniq-data)
+                      (let ((beg-end-index-list (list)))
+                        (dotimes (i (length uniq-data))
+                          (let ((uniq-data-sub (aref uniq-array (aref uniq-data i))))
+                            (pcase-let ((`(,sub-expr . ,face-index) uniq-data-sub))
+                              (pcase-let ((`(,beg ,end) (nthcdr (* 2 sub-expr) match-tail)))
+                                (when (and beg end)
+                                  (push (list
+                                         (marker-position beg)
+                                         (marker-position end)
+                                         face-index)
+                                        beg-end-index-list))))))
+
                         (cond
-                          ;; This is really an indirection (list of unique indices).
-                          ;; `uniq-data' is a list of indices into `uniq-array'.
-                          ((vectorp uniq-data)
-                            (let ((beg-end-index-list (list)))
-                              (dotimes (i (length uniq-data))
-                                (let ((uniq-data-sub (aref uniq-array (aref uniq-data i))))
-                                  (pcase-let ((`(,sub-expr . ,face-index) uniq-data-sub))
-                                    (pcase-let ((`(,beg ,end) (nthcdr (* 2 sub-expr) match-tail)))
-                                      (when (and beg end)
-                                        (push
-                                          (list
-                                            (marker-position beg)
-                                            (marker-position end)
-                                            face-index)
-                                          beg-end-index-list))))))
+                         ;; Empty, do nothing.
+                         ((null beg-end-index-list)
+                          nil)
 
-                              (cond
-                                ;; Empty, do nothing.
-                                ((null beg-end-index-list)
-                                  nil)
+                         ;; A single item, use simple handling (nothing clever).
+                         ;; This can happen when a multi-item has optional matches,
+                         ;; and only one is found.
+                         ((null (cdr beg-end-index-list))
+                          (pcase-let ((`(,beg ,end ,face-index) (car beg-end-index-list)))
+                            (hl-prog-extra--match-index-set beg end face-index)))
 
-                                ;; A single item, use simple handling (nothing clever).
-                                ;; This can happen when a multi-item has optional matches,
-                                ;; and only one is found.
-                                ((null (cdr beg-end-index-list))
-                                  (pcase-let ((`(,beg ,end ,face-index) (car beg-end-index-list)))
-                                    (hl-prog-extra--match-index-set beg end face-index)))
+                         ;; Multi-item match, handle the first, store the rest
+                         ;; in the stack to be returned before further searching.
+                         (t
+                          (setq hl-prog-extra--data-match-stack beg-end-index-list)
+                          (hl-prog-extra--match-impl-precalc bound)
+                          ;; Don't step into the next context, allow for the remaining
+                          ;; items in the stack to be handled first.
+                          (setq bound-context-clamp nil)))))
 
-                                ;; Multi-item match, handle the first, store the rest
-                                ;; in the stack to be returned before further searching.
-                                (t
-                                  (setq hl-prog-extra--data-match-stack beg-end-index-list)
-                                  (hl-prog-extra--match-impl-precalc bound)
-                                  ;; Don't step into the next context, allow for the remaining
-                                  ;; items in the stack to be handled first.
-                                  (setq bound-context-clamp nil)))))
+                     (t
+                      ;; When sub-expressions are used, they need to be extracted.
+                      (when uniq-data
+                        (pcase-let ((`(,sub-expr . ,face-index) uniq-data))
+                          (when sub-expr
+                            (pcase-let ((`(,beg ,end) (nthcdr (* 2 sub-expr) match-tail)))
+                              ;; The configuration may have an out of range `sub-expr'
+                              ;; just ignore this and use the whole expression since raising
+                              ;; an error during font-locking in this case isn't practical.
+                              (when (and beg end)
+                                (setq beg-final beg)
+                                (setq end-final end))))
 
-                          (t
-                            ;; When sub-expressions are used, they need to be extracted.
-                            (when uniq-data
-                              (pcase-let ((`(,sub-expr . ,face-index) uniq-data))
-                                (when sub-expr
-                                  (pcase-let ((`(,beg ,end) (nthcdr (* 2 sub-expr) match-tail)))
-                                    ;; The configuration may have an out of range `sub-expr'
-                                    ;; just ignore this and use the whole expression since raising
-                                    ;; an error during font-locking in this case isn't practical.
-                                    (when (and beg end)
-                                      (setq beg-final beg)
-                                      (setq end-final end))))
+                          ;; Remap the absolute table to the unique face.
+                          (hl-prog-extra--match-index-set
+                           (marker-position beg-final)
+                           (marker-position end-final)
+                           face-index)))))))
 
-                                ;; Remap the absolute table to the unique face.
-                                (hl-prog-extra--match-index-set
-                                  (marker-position beg-final)
-                                  (marker-position end-final)
-                                  face-index)))))))
+                (when bound-context-clamp
+                  ;; If the clamped bounds is met, step to the un-clamped bounds.
+                  (when (>= (point) bound-context-clamp)
+                    (goto-char bound-context))))
 
-                    (when bound-context-clamp
-                      ;; If the clamped bounds is met, step to the un-clamped bounds.
-                      (when (>= (point) bound-context-clamp)
-                        (goto-char bound-context))))
+               ;; Not found, skip to the next context.
+               (t
+                (goto-char bound-context)
+                (setq state-at-pt state-at-pt-next)))))
 
-                  ;; Not found, skip to the next context.
-                  (t
-                    (goto-char bound-context)
-                    (setq state-at-pt state-at-pt-next)))))
-
-            ;; Nothing to search for, simply skip over this context.
-            (t
-              (setq state-at-pt
-                (parse-partial-sexp (point) bound nil nil state-at-pt 'syntax-table)))))))
+           ;; Nothing to search for, simply skip over this context.
+           (t
+            (setq state-at-pt
+                  (parse-partial-sexp (point) bound nil nil state-at-pt 'syntax-table)))))))
     found))
 
 (defun hl-prog-extra--match-impl-precalc (bound)
@@ -696,26 +683,26 @@ Tables are aligned with SYN-REGEX-LIST."
 Argument BOUND is only used to validate the state."
   (let ((item (pop hl-prog-extra--data-match-stack)))
     (cond
-      (item
-        (pcase-let ((`(,beg ,end ,index) item))
-          (hl-prog-extra--match-index-set beg end index)
+     (item
+      (pcase-let ((`(,beg ,end ,index) item))
+        (hl-prog-extra--match-index-set beg end index)
 
-          ;; Check this before using items in `hl-prog-extra--data-match-stack'.
-          (setq hl-prog-extra--data-match-stack-state
-            (cond
-              (hl-prog-extra--data-match-stack
+        ;; Check this before using items in `hl-prog-extra--data-match-stack'.
+        (setq hl-prog-extra--data-match-stack-state
+              (cond
+               (hl-prog-extra--data-match-stack
                 ;; Go to the beginning of the next match to prevent the bounds from being reached.
                 (goto-char (min (car (car hl-prog-extra--data-match-stack)) bound))
                 ;; Check this is unchanged on re-entry.
                 (cons (point) bound))
-              (t
+               (t
                 ;; Go to the end since there is no further data to parse.
                 (goto-char (min beg bound))
                 nil)))
-          ;; Found.
-          t))
-      (t
-        nil))))
+        ;; Found.
+        t))
+     (t
+      nil))))
 
 (defun hl-prog-extra--match (bound)
   "MATCHER for the font lock keyword in `hl-prog-extra--data', until BOUND."
@@ -723,23 +710,22 @@ Argument BOUND is only used to validate the state."
   (when hl-prog-extra--data-match-stack
     ;; Ensure stale data from this stack is never used (even though it's unlikely).
     ;; See `hl-prog-extra--data-match-stack-state' for details.
-    (when
-      (or
-        ;; Should never happen, check more for correctness.
-        (null hl-prog-extra--data-match-stack-state)
-        ;; The point moved since last search.
-        (not (eq (point) (car hl-prog-extra--data-match-stack-state)))
-        ;; The bound moved since last search.
-        (not (eq bound (cdr hl-prog-extra--data-match-stack-state))))
+    (when (or
+           ;; Should never happen, check more for correctness.
+           (null hl-prog-extra--data-match-stack-state)
+           ;; The point moved since last search.
+           (not (eq (point) (car hl-prog-extra--data-match-stack-state)))
+           ;; The bound moved since last search.
+           (not (eq bound (cdr hl-prog-extra--data-match-stack-state))))
 
       (setq hl-prog-extra--data-match-stack-state nil)
       (setq hl-prog-extra--data-match-stack nil)))
 
   (cond
-    (hl-prog-extra--data-match-stack
-      (hl-prog-extra--match-impl-precalc bound))
-    (t
-      (hl-prog-extra--match-impl bound))))
+   (hl-prog-extra--data-match-stack
+    (hl-prog-extra--match-impl-precalc bound))
+   (t
+    (hl-prog-extra--match-impl bound))))
 
 
 ;; ---------------------------------------------------------------------------
@@ -755,39 +741,36 @@ when the preset isn't found.
 The rest are expected to be keyword arguments,
 to control the behavior of each preset,
 see it's documentation for available keywords."
-  (let
-    (
-      (mode-value nil)
-      (quiet nil)
-      (args-positional t)
-      (args-count 0))
+  (let ((mode-value nil)
+        (quiet nil)
+        (args-positional t)
+        (args-count 0))
 
     (while (and args args-positional)
       (let ((arg (car args)))
         (cond
-          ((keywordp arg)
-            ;; Found a keyword argument, break.
-            (setq args-positional nil))
-          (t
-            (pcase args-count
-              (0 (setq mode-value arg))
-              (1 (setq quiet arg))
-              (_ (error "Only two positional arguments must be given")))
-            (setq args-count (1+ args-count))
-            (setq args (cdr args))))))
+         ((keywordp arg)
+          ;; Found a keyword argument, break.
+          (setq args-positional nil))
+         (t
+          (pcase args-count
+            (0 (setq mode-value arg))
+            (1 (setq quiet arg))
+            (_ (error "Only two positional arguments must be given")))
+          (setq args-count (1+ args-count))
+          (setq args (cdr args))))))
 
     (unless mode-value
       (setq mode-value (symbol-name major-mode)))
     (let ((preset-sym (intern (concat "hl-prog-extra-preset-" mode-value))))
-      (when
-        (condition-case err
-          (progn
-            (require preset-sym)
-            t)
-          (error
-            (unless quiet
-              (message "hl-prog-extra: preset %S not found! (%S)" mode-value err))
-            nil))
+      (when (condition-case err
+                (progn
+                  (require preset-sym)
+                  t)
+              (error
+               (unless quiet
+                 (message "hl-prog-extra: preset %S not found! (%S)" mode-value err))
+               nil))
         (apply preset-sym args)))))
 
 
@@ -833,32 +816,30 @@ see it's documentation for available keywords."
   :keymap nil
 
   (cond
-    (hl-prog-extra-mode
-      (hl-prog-extra--mode-enable))
-    (t
-      (hl-prog-extra--mode-disable))))
+   (hl-prog-extra-mode
+    (hl-prog-extra--mode-enable))
+   (t
+    (hl-prog-extra--mode-disable))))
 
 (defun hl-prog-extra--mode-turn-on ()
   "Enable the option `hl-prog-extra-mode' where possible."
-  (when
-    (and
-      ;; Not already enabled.
-      (not hl-prog-extra-mode)
-      ;; Not in the mini-buffer.
-      (not (minibufferp))
-      ;; Not a special mode (package list, tabulated data ... etc)
-      ;; Instead the buffer is likely derived from `text-mode' or `prog-mode'.
-      (not (derived-mode-p 'special-mode))
-      ;; Not explicitly ignored.
-      (not (memq major-mode hl-prog-extra-global-ignore-modes))
-      ;; Optionally check if a function is used.
-      (or
-        (null hl-prog-extra-global-ignore-buffer)
-        (cond
-          ((functionp hl-prog-extra-global-ignore-buffer)
-            (not (funcall hl-prog-extra-global-ignore-buffer (current-buffer))))
-          (t
-            nil))))
+  (when (and
+         ;; Not already enabled.
+         (not hl-prog-extra-mode)
+         ;; Not in the mini-buffer.
+         (not (minibufferp))
+         ;; Not a special mode (package list, tabulated data ... etc)
+         ;; Instead the buffer is likely derived from `text-mode' or `prog-mode'.
+         (not (derived-mode-p 'special-mode))
+         ;; Not explicitly ignored.
+         (not (memq major-mode hl-prog-extra-global-ignore-modes))
+         ;; Optionally check if a function is used.
+         (or (null hl-prog-extra-global-ignore-buffer)
+             (cond
+              ((functionp hl-prog-extra-global-ignore-buffer)
+               (not (funcall hl-prog-extra-global-ignore-buffer (current-buffer))))
+              (t
+               nil))))
     (hl-prog-extra-mode 1)))
 
 ;;;###autoload

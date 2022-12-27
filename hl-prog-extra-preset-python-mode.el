@@ -16,63 +16,62 @@
 :no-sphinx
   Don't use sphinx in doc-strings."
   (let
-    ( ;; Keywords.
-      (no-string-escape nil)
-      (no-sphinx nil)
+      ( ;; Keywords.
+       (no-string-escape nil)
+       (no-sphinx nil)
 
-      ;; Constant's for regex.
-      (re-identifier "[[:alpha:]_]+[[:alnum:]_]*")
+       ;; Constant's for regex.
+       (re-identifier "[[:alpha:]_]+[[:alnum:]_]*")
 
-      (result (list)))
+       (result (list)))
 
     ;; Parse keywords.
     (while args
       (let ((arg-current (pop args)))
         (cond
-          ((keywordp arg-current)
-            (unless args
-              (error "Keyword argument %S has no value!" arg-current))
-            (let ((v (pop args)))
-              (pcase arg-current
-                (:no-string-escape
-                  (unless (memq v (list nil t))
-                    (error ":quiet expected a boolean"))
-                  (setq no-string-escape v))
-                (:no-sphinx
-                  (unless (memq v (list nil t))
-                    (error ":no-sphinx expected a boolean"))
-                  (setq no-sphinx v))
-                (_ (error "Unknown argument %S" arg-current)))))
-          (t
-            (error
-              "Arguments must be keyword, value pairs, found %S = %S"
-              (type-of arg-current)
-              arg-current)))))
+         ((keywordp arg-current)
+          (unless args
+            (error "Keyword argument %S has no value!" arg-current))
+          (let ((v (pop args)))
+            (pcase arg-current
+              (:no-string-escape
+               (unless (memq v (list nil t))
+                 (error ":quiet expected a boolean"))
+               (setq no-string-escape v))
+              (:no-sphinx
+               (unless (memq v (list nil t))
+                 (error ":no-sphinx expected a boolean"))
+               (setq no-sphinx v))
+              (_ (error "Unknown argument %S" arg-current)))))
+         (t
+          (error
+           "Arguments must be keyword, value pairs, found %S = %S"
+           (type-of arg-current)
+           arg-current)))))
 
     (unless no-string-escape
-      (push
-        (list
-          (concat
-            ;; Back-slash.
-            "\\\\"
-            ;; Group.
-            "\\("
-            ;; "\n" and similar single escape characters.
-            "[abnrtfv\"\\\\]\\|"
-            ;; "\x00" number (always exactly two).
-            "x[0-9a-zA-Z]\\{2\\}\\|"
-            ;; "\u0000" unicode.
-            "u[0-9a-fA-F]\\{4\\}\\|"
-            ;; "\000" octal.
-            "[0-7]{1,3}\\|"
-            ;; "\N{NAMED UNICODE}".
-            "N{[A-Z\\s\\-]+}\\|"
-            ;; Trailing slash to escape a newline (continue string).
-            "\n"
-            ;; End group.
-            "\\)")
-          0 'string 'escape-glyph)
-        result))
+      (push (list
+             (concat
+              ;; Back-slash.
+              "\\\\"
+              ;; Group.
+              "\\("
+              ;; "\n" and similar single escape characters.
+              "[abnrtfv\"\\\\]\\|"
+              ;; "\x00" number (always exactly two).
+              "x[0-9a-zA-Z]\\{2\\}\\|"
+              ;; "\u0000" unicode.
+              "u[0-9a-fA-F]\\{4\\}\\|"
+              ;; "\000" octal.
+              "[0-7]{1,3}\\|"
+              ;; "\N{NAMED UNICODE}".
+              "N{[A-Z\\s\\-]+}\\|"
+              ;; Trailing slash to escape a newline (continue string).
+              "\n"
+              ;; End group.
+              "\\)")
+             0 'string 'escape-glyph)
+            result))
 
     ;; Note that this isn't an attempt to be a full Sphinx-in-Python solution
     ;; it's mainly intended to isolate Sphinx markup so it's the from plain text.
@@ -92,13 +91,12 @@
 
       ;; Argument syntax.
       (dolist (prefix (list "arg" "type"))
-        (push
-          (list
-            (concat ":" prefix "[[:blank:]]+" re-identifier ":")
-            0
-            'string-doc
-            'font-lock-constant-face)
-          result)))
+        (push (list
+               (concat ":" prefix "[[:blank:]]+" re-identifier ":")
+               0
+               'string-doc
+               'font-lock-constant-face)
+              result)))
 
     (dolist (id (list "return" "rtype"))
       (push (list (concat ":" id ":") 0 'string-doc 'font-lock-constant-face) result))
@@ -107,13 +105,12 @@
     (push (list "^[[:blank:]]*>>>[^\n]+$" 0 'string-doc 'font-lock-constant-face) result)
 
     ;; Covers most directives.
-    (push
-      (list
-        (concat "^[[:blank:]]*" "\\.\\.[[:blank:]]+[[:alpha:]]+[[:alpha:]_\\-]*::[[:blank:]\n]")
-        0
-        'string-doc
-        'font-lock-constant-face)
-      result)
+    (push (list
+           (concat
+            "^[[:blank:]]*"
+            "\\.\\.[[:blank:]]+[[:alpha:]]+[[:alpha:]_\\-]*::[[:blank:]\n]")
+           0 'string-doc 'font-lock-constant-face)
+          result)
 
     result))
 
