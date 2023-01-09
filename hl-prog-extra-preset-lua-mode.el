@@ -13,11 +13,11 @@
   "Presets for `lua-mode' with optional ARGS keyword arguments.
 :no-string-escape
   Don't use escape strings."
-  (let
-      ( ;; Keywords.
-       (no-string-escape nil)
+  ;; Keywords.
+  (let ((no-string-escape nil)
+        ;; End keywords.
 
-       (result (list)))
+        (result (list)))
 
     ;; Parse keywords.
     (while args

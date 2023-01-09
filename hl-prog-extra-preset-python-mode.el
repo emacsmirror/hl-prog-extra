@@ -15,15 +15,15 @@
   Don't use escape strings.
 :no-sphinx
   Don't use sphinx in doc-strings."
-  (let
-      ( ;; Keywords.
-       (no-string-escape nil)
-       (no-sphinx nil)
+  ;; Keywords.
+  (let ((no-string-escape nil)
+        (no-sphinx nil)
+        ;; End keywords.
 
-       ;; Constant's for regex.
-       (re-identifier "[[:alpha:]_]+[[:alnum:]_]*")
+        ;; Constant's for regex.
+        (re-identifier "[[:alpha:]_]+[[:alnum:]_]*")
 
-       (result (list)))
+        (result (list)))
 
     ;; Parse keywords.
     (while args

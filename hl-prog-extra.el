@@ -187,8 +187,8 @@ check this buffer.")
   "Validate ITEM, return an message or nil on success."
   (let* ((item-context-valid-items
           (list
-           'comment 'comment-only 'comment-doc ;; Comments.
-           'string 'string-only 'string-doc ;; Strings.
+           'comment 'comment-only 'comment-doc ; Comments.
+           'string 'string-only 'string-doc ; Strings.
            nil))
 
          ;; ----------------------------
@@ -264,7 +264,7 @@ check this buffer.")
          (validate-context-fn
           (lambda (context)
             (cond
-             ((null context) ;; Do nothing (correct input).
+             ((null context) ; Do nothing (correct input).
               nil)
              ((not (listp context))
               (funcall validate-context-single-fn context))
@@ -305,7 +305,7 @@ check this buffer.")
             (cond
              ((not (listp re-subexpr))
               (funcall validate-face-single-fn face))
-             (t ;; List.
+             (t ; List.
               (funcall validate-face-list-fn face re-subexpr))))))
 
 
@@ -375,30 +375,29 @@ regex-string:
 
 Tables are aligned with SYN-REGEX-LIST."
   (let ((len (length syn-regex-list)))
-    (let
-        ( ;; Group regex by the context they search in.
-         (re-comment-only (list))
-         (re-comment-doc (list))
-         (re-string-only (list))
-         (re-string-doc (list))
-         (re-rest (list))
-         ;; Store variables for the doc/only variables are different.
-         ;; This is useful since calculating this information is expensive.
-         (is-complex-comment nil)
-         (is-complex-string nil)
+    (let ((item-index 0)
+          ;; Error checking.
+          (item-error-prefix "hl-prog-extra, error parsing `hl-prog-extra-list'")
 
-         ;; Unique faces, use to build the arguments for font locking.
-         (face-list (list))
-         (face-list-contents (make-hash-table :test 'eq :size len))
-         ;; Unique values aligned with the regex groups.
-         ;; Each element be a list if other kinds of data needs to be referenced.
-         (uniq-list (list))
-         ;; Use `equal` so vector can be used as keys.
-         (uniq-list-contents (make-hash-table :test 'equal :size len))
+          ;; Group regex by the context they search in.
+          (re-comment-only (list))
+          (re-comment-doc (list))
+          (re-string-only (list))
+          (re-string-doc (list))
+          (re-rest (list))
+          ;; Store variables for the doc/only variables are different.
+          ;; This is useful since calculating this information is expensive.
+          (is-complex-comment nil)
+          (is-complex-string nil)
 
-         ;; Error checking.
-         (item-error-prefix "hl-prog-extra, error parsing `hl-prog-extra-list'")
-         (item-index 0))
+          ;; Unique faces, use to build the arguments for font locking.
+          (face-list (list))
+          (face-list-contents (make-hash-table :test 'eq :size len))
+          ;; Unique values aligned with the regex groups.
+          ;; Each element be a list if other kinds of data needs to be referenced.
+          (uniq-list (list))
+          ;; Use `equal` so vector can be used as keys.
+          (uniq-list-contents (make-hash-table :test 'equal :size len)))
 
       (pcase-dolist (`(,re ,re-subexpr ,context ,face) syn-regex-list)
 
@@ -407,27 +406,27 @@ Tables are aligned with SYN-REGEX-LIST."
         (unless (and context (listp context))
           (setq context (list context)))
 
-        (let
-            ( ;; Be strict here since any errors on font-locking are difficult for users to debug.
-             (error-msg (hl-prog-extra--validate-keyword-item (list re re-subexpr context face)))
+        (let ((error-msg
+               ;; Be strict here since any errors on font-locking are difficult for users to debug.
+               (hl-prog-extra--validate-keyword-item (list re re-subexpr context face)))
 
-             ;; Handle cases with multiple sub-expressions.
-             (is-multi nil)
-             (uniq-index-multi nil)
+              ;; Handle cases with multiple sub-expressions.
+              (is-multi nil)
+              (uniq-index-multi nil)
 
-             (uniq-index nil)
-             (face-index nil))
+              (uniq-index nil)
+              (face-index nil))
 
           (cond
            (error-msg
             (message "%s: %s (item %d)" item-error-prefix error-msg item-index))
-           (t ;; No error.
+           (t ; No error.
 
             (cond
              ((and re-subexpr (listp re-subexpr))
               (when (<= 1 (length re-subexpr))
                 (setq is-multi t)))
-             (t ;; Move into a list to avoid duplicate code-paths.
+             (t ; Move into a list to avoid duplicate code-paths.
               (setq re-subexpr (list re-subexpr))
               (setq face (list face))))
 
@@ -488,7 +487,7 @@ Tables are aligned with SYN-REGEX-LIST."
                   (push regex-fmt re-string-doc))
                  ((null context-symbol)
                   (push regex-fmt re-rest))
-                 (t ;; Checked for above.
+                 (t ; Checked for above.
                   (error "Invalid context %S" context-symbol))))))))
 
         (setq item-index (1+ item-index)))
@@ -543,10 +542,9 @@ Tables are aligned with SYN-REGEX-LIST."
         (info (car hl-prog-extra--data))
         ;; Always case sensitive.
         (case-fold-search nil))
-    (pcase-let (
-                ( ;; Unpack (car info)
-                 `(,`(,re-comment-only ,re-comment-doc ,re-string-only ,re-string-doc ,re-rest)
-                   ;; Unpack (cdr info)
+    ;; Unpack `car' of info, (first block), remainder unpacks the `cdr' of info.
+    (pcase-let ((`(,`(,re-comment-only ,re-comment-doc ,re-string-only ,re-string-doc ,re-rest)
+                   ;; Second block.
                    ,_ ,uniq-array ,is-complex-comment ,is-complex-string)
                  info))
       (while (and (null found) (< (point) bound))
@@ -599,11 +597,11 @@ Tables are aligned with SYN-REGEX-LIST."
               (cond
                ((re-search-forward re-context (or bound-context-clamp bound-context) t)
                 (setq found t)
-                (pcase-let*
-                    ( ;; The `uniq-index' is always needed so the original font can be found
-                     ;; and so it's possible to check for a sub-expression.
-                     (`(,match-tail . ,uniq-index) (hl-prog-extra--match-first (match-data)))
-                     (`(,beg-final ,end-final) match-tail))
+                ;; The `uniq-index' is always needed so the original font can be found
+                ;; and so it's possible to check for a sub-expression.
+                (pcase-let* ((`(,match-tail . ,uniq-index)
+                              (hl-prog-extra--match-first (match-data)))
+                             (`(,beg-final ,end-final) match-tail))
 
                   (let ((uniq-data (aref uniq-array uniq-index)))
                     (cond
