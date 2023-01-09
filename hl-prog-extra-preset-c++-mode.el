@@ -62,4 +62,8 @@
     result))
 
 (provide 'hl-prog-extra-preset-c++-mode)
+;; Local Variables:
+;; fill-column: 99
+;; indent-tabs-mode: nil
+;; End:
 ;;; hl-prog-extra-preset-c++-mode.el ends here

@@ -63,4 +63,8 @@
     result))
 
 (provide 'hl-prog-extra-preset-lua-mode)
+;; Local Variables:
+;; fill-column: 99
+;; indent-tabs-mode: nil
+;; End:
 ;;; hl-prog-extra-preset-lua-mode.el ends here

@@ -845,6 +845,9 @@ see it's documentation for available keywords."
   hl-prog-extra-mode
   hl-prog-extra--mode-turn-on)
 
-
 (provide 'hl-prog-extra)
+;; Local Variables:
+;; fill-column: 99
+;; indent-tabs-mode: nil
+;; End:
 ;;; hl-prog-extra.el ends here

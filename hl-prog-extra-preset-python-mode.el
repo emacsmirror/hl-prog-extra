@@ -115,4 +115,8 @@
     result))
 
 (provide 'hl-prog-extra-preset-python-mode)
+;; Local Variables:
+;; fill-column: 99
+;; indent-tabs-mode: nil
+;; End:
 ;;; hl-prog-extra-preset-python-mode.el ends here
