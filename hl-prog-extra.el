@@ -191,7 +191,7 @@ check this buffer.")
            'string 'string-only 'string-doc ; Strings.
            nil))
 
-         ;; ----------------------------
+         ;; -------------------------
          ;; Check `re', 1st argument.
 
          (validate-re-fn
@@ -435,7 +435,7 @@ Tables are aligned with SYN-REGEX-LIST."
                     (face-sub (pop face)))
 
                 ;; Note that a zero `re-sub' is not the same as nil,
-                ;; since a zero group is needed for matching the first level of parenthisis.
+                ;; since a zero group is needed for matching the first level of parenthesis.
 
                 (let ((key face-sub))
                   (setq face-index (gethash key face-list-contents))
