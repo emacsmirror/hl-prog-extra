@@ -33,12 +33,12 @@ This package exposes the following functions.
 
 ``hl-prog-extra-mode``
    Enable the buffer local mode.
+``hl-prog-extra-global-mode``
+   Enable the mode globally.
 ``hl-prog-extra-refresh``
    Run this so customization is updated while the mode is active.
 ``hl-prog-extra-preset``
    Load a preset associated with the current major-mode (when available), see: the presets section below.
-``global-hl-prog-extra-mode``
-   Enable the mode globally.
 
 
 Customization
@@ -93,10 +93,10 @@ Customization
    When non-nil, include presets for the current major-mode (when available).
 
 ``hl-prog-extra-global-ignore-modes`` nil
-   A list of modes that won't enable highlighting from ``global-hl-prog-extra-mode``.
+   A list of modes that won't enable highlighting from ``hl-prog-extra-global-mode``.
 
 ``hl-prog-extra-global-ignore-buffer`` nil
-   When not ``nil``, the buffer won't enable highlighting from ``global-hl-prog-extra-mode``.
+   When not ``nil``, the buffer won't enable highlighting from ``hl-prog-extra-global-mode``.
 
    This may also be a function that takes a single buffer argument,
    where returning ``nil`` will enable highlighting anything else will not.
@@ -148,7 +148,7 @@ Without any configuration, enabling the mode globally will highlight URL's and e
 .. code-block:: elisp
 
    (use-package hl-prog-extra)
-   (global-hl-prog-extra-mode)
+   (hl-prog-extra-global-mode)
 
 
 This is a more involved example that defines it's own matches, only loading on some modes:

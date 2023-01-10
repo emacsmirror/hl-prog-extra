@@ -7,7 +7,7 @@
 
 ;; URL: https://codeberg.org/ideasman42/emacs-hl-prog-extra
 ;; Keywords: convenience
-;; Version: 0.1
+;; Version: 0.2
 ;; Package-Requires: ((emacs "26.2"))
 
 ;;; Commentary:
@@ -22,15 +22,15 @@
 ;; Write the following code to your .emacs file:
 ;;
 ;;   (require 'hl-prog-extra)
-;;   (global-hl-prog-extra-mode)
+;;   (hl-prog-extra-global-mode)
 ;;
 ;; Or with `use-package':
 ;;
 ;;   (use-package hl-prog-extra)
-;;   (global-hl-prog-extra-mode)
+;;   (hl-prog-extra-global-mode)
 ;;
 ;; If you prefer to enable this per-mode, you may do so using
-;; mode hooks instead of calling `global-hl-prog-extra-mode'.
+;; mode hooks instead of calling `hl-prog-extra-global-mode'.
 ;; The following example enables this for org-mode:
 ;;
 ;;   (add-hook 'python-mode-hook
@@ -841,9 +841,11 @@ see it's documentation for available keywords."
     (hl-prog-extra-mode 1)))
 
 ;;;###autoload
-(define-globalized-minor-mode global-hl-prog-extra-mode
+(define-globalized-minor-mode hl-prog-extra-global-mode
   hl-prog-extra-mode
   hl-prog-extra--mode-turn-on)
+
+(define-obsolete-function-alias 'global-hl-prog-extra-mode #'hl-prog-extra-global-mode "0.2")
 
 (provide 'hl-prog-extra)
 ;; Local Variables:
