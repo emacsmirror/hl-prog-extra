@@ -615,9 +615,7 @@ Tables are aligned with SYN-REGEX-LIST."
                               (pcase-let ((`(,beg ,end) (nthcdr (* 2 sub-expr) match-tail)))
                                 (when (and beg end)
                                   (push (list
-                                         (marker-position beg)
-                                         (marker-position end)
-                                         face-index)
+                                         (marker-position beg) (marker-position end) face-index)
                                         beg-end-index-list))))))
 
                         (cond

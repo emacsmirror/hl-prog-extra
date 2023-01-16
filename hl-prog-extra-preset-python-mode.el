@@ -107,8 +107,7 @@
     ;; Covers most directives.
     (push (list
            (concat
-            "^[[:blank:]]*"
-            "\\.\\.[[:blank:]]+[[:alpha:]]+[[:alpha:]_\\-]*::[[:blank:]\n]")
+            "^[[:blank:]]*" "\\.\\.[[:blank:]]+[[:alpha:]]+[[:alpha:]_\\-]*::[[:blank:]\n]")
            0 'string-doc 'font-lock-constant-face)
           result)
 
