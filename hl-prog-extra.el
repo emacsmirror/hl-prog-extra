@@ -517,8 +517,7 @@ Tables are aligned with SYN-REGEX-LIST."
   (let ((faceprop (get-text-property pos 'face)))
     (cond
      ((facep faceprop)
-      (when (eq faceprop face-test)
-        t))
+      (eq faceprop face-test))
      ((face-list-p faceprop)
       (let ((found nil))
         (while faceprop
