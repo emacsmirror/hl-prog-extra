@@ -100,17 +100,17 @@ Modifying this while variable `hl-prog-extra-mode' is enabled requires calling
   :type
   '(repeat
     (list
-     regexp integer
-     (choice
-      (const :tag "Comment (Any)" :value comment)
-      (const :tag "Comment (Only)" :value comment-only)
-      (const :tag "Comment (Doc)" :value comment-doc)
-      (const :tag "String (Any)" :value string)
-      (const :tag "String (Only)" :value string-only)
-      (const :tag "String (Doc)" :value string-doc)
-      (const :tag "Other" :value nil)
-      ;; A list of choices is also supported.
-      (repeat symbol))
+     regexp
+     integer
+     (choice (const :tag "Comment (Any)" :value comment)
+             (const :tag "Comment (Only)" :value comment-only)
+             (const :tag "Comment (Doc)" :value comment-doc)
+             (const :tag "String (Any)" :value string)
+             (const :tag "String (Only)" :value string-only)
+             (const :tag "String (Doc)" :value string-doc)
+             (const :tag "Other" :value nil)
+             ;; A list of choices is also supported.
+             (repeat symbol))
      face)))
 
 (defcustom hl-prog-extra-preset nil
@@ -848,5 +848,6 @@ see it's documentation for available keywords."
 ;; Local Variables:
 ;; fill-column: 99
 ;; indent-tabs-mode: nil
+;; elisp-autofmt-format-quoted: nil
 ;; End:
 ;;; hl-prog-extra.el ends here
