@@ -217,8 +217,19 @@ Details
 Limitations
 ===========
 
-- Only a single face is supported per-match.
-- Categories are limited to ``'comment``, ``'string`` and ``nil``.
+- Categories are limited to ``'comment``, ``'comment-only``, ``'comment-doc``, ``'string`` and ``nil``.
+
+  Clearly there are other kinds of categories of text based on the language you're writing in,
+  so it's possible you might want finer grained control over the contexts in which highlighting is applied.
+
+- Overlapping matches aren't supported.
+
+  As the text is only scanned once, a match that finds ``NOTE(example text)``,
+  e.g. ``"\\<\\(NOTE\\)\\((\\([^)+]+\\))\\)?"`` cannot also match the text within the brackets,
+  (``example text`` in this case).
+
+  While `Multi-Group Matching`_ can apply multiple faces for a match,
+  highlighting rules will not be applied to text within an existing match.
 
 
 Installation
