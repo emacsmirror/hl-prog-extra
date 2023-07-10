@@ -243,14 +243,6 @@ The package is `available in melpa <https://melpa.org/#/hl-prog-extra>`__ as ``h
      :commands (hl-prog-extra-mode))
 
 
-Hints
-=====
-
-- The package `sidecar-locals <https://codeberg.org/ideasman42/emacs-sidecar-locals>`__
-  provides out-of-source configuration, this is a convenient alternative to file or directory-locals
-  that makes it convenient to add project-specific highlighting.
-
-
 Further Work
 ============
 
@@ -259,3 +251,18 @@ Further Work
 
 - A predicate function could be (optionally) defined to perform additional checks before highlighting,
   this would allow checking additional context when considering matches.
+
+
+Other Packages
+==============
+
+`prog-face-refine <https://codeberg.org/ideasman42/emacs-prog-face-refine>`__
+   This package provides a way to change the face used for comments based on their contents.
+   You may wish to use different faces for specific comment prefixes for e.g.
+
+   While there are no inter-dependencies, both packages support using user-configuration
+   to extend comment highlighting.
+
+- `sidecar-locals <https://codeberg.org/ideasman42/emacs-sidecar-locals>`__
+  provides out-of-source configuration, this is a convenient alternative to file or directory-locals
+  that makes it convenient to add project-specific highlighting.
