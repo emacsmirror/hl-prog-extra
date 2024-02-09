@@ -62,12 +62,12 @@
 
    ;; Highlight `TODO` or `TODO(text): and similar.
    (list
-    "\\<\\(TODO\\|NOTE\\)\\(([^)+]+)\\)?"
+    "\\<\\(TODO\\|NOTE\\)\\>\\(([^)+]+)\\)?"
     0
     'comment
     '(:background "#006000" :foreground "#FFFFFF"))
    (list
-    "\\<\\(FIXME\\|XXX\\|WARNING\\|BUG\\)\\(([^)+]+)\\)?"
+    "\\<\\(FIXME\\|XXX\\|WARNING\\|BUG\\)\\>\\(([^)+]+)\\)?"
     0
     'comment
     '(:background "#800000" :foreground "#FFFFFF")))

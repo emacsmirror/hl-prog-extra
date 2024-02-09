@@ -188,19 +188,19 @@ This example configuration shows how multiple matches can be used with tags in c
 
    (setq hl-prog-extra-list
      (list
-       "\\<\\(NOTE\\)\\((\\([^)+]+\\))\\)?" '(0 3) 'comment
+       "\\<\\(NOTE\\)\\>\\((\\([^)+]+\\))\\)?" '(0 3) 'comment
        (list
          '(:background "#006000" :foreground "#FFFFFF")
          '(:background "#006000" :foreground "#BBBBBB")))
 
      (list
-       "\\<\\(TODO\\|WORKAROUND\\)\\((\\([^)+]+\\))\\)?" '(0 3) 'comment
+       "\\<\\(TODO\\|WORKAROUND\\)\\>\\((\\([^)+]+\\))\\)?" '(0 3) 'comment
        (list
          '(:background "#707000" :foreground "#FFFFFF")
          '(:background "#707000" :foreground "#BBBBBB")))
 
      (list
-       "\\<\\(FIXME\\|XXX\\|WARNING\\)\\((\\([^)+]+\\))\\)?" '(0 3) 'comment
+       "\\<\\(FIXME\\|XXX\\|WARNING\\)\\>\\((\\([^)+]+\\))\\)?" '(0 3) 'comment
        (list
          '(:background "#800000" :foreground "#FFFFFF")
          '(:background "#800000" :foreground "#BBBBBB"))))
