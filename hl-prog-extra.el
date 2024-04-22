@@ -150,6 +150,7 @@ check this buffer.")
 
 (defun hl-prog-extra--match-first (match)
   "Return a the first valid group from MATCH and it's zero based index."
+  (declare (important-return-value t))
   (setq match (cddr match))
   (let ((i 0))
     (while (and match (null (car match)))
@@ -159,6 +160,7 @@ check this buffer.")
 
 (defun hl-prog-extra--match-index-set (beg end index)
   "Set the match data from BEG to END at INDEX."
+  (declare (important-return-value nil))
   (let ((gen-match (list beg end)))
     (dotimes (_ index)
       (setq gen-match (cons nil (cons nil gen-match))))
@@ -167,6 +169,7 @@ check this buffer.")
 
 (defun hl-prog-extra--regexp-valid-or-error (re)
   "Return nil if RE is a valid regexp, otherwise the error string"
+  (declare (important-return-value t))
   (condition-case err
       (prog1 nil
         (string-match-p re ""))
@@ -174,6 +177,7 @@ check this buffer.")
 
 (defun hl-prog-extra--maybe-prefix (prefix msg)
   "Prefix MSG with PREFIX or return MSG when nil."
+  (declare (important-return-value t))
   (cond
    ((null msg)
     nil)
@@ -185,6 +189,7 @@ check this buffer.")
 
 (defun hl-prog-extra--validate-keyword-item (item)
   "Validate ITEM, return an message or nil on success."
+  (declare (important-return-value t))
   (let* ((item-context-valid-items
           (list
            'comment 'comment-only 'comment-doc ; Comments.
@@ -325,6 +330,7 @@ check this buffer.")
 
 (defun hl-prog-extra--precompute-keywords (face-vector)
   "Create data to pass to `font-lock-add-keywords' from FACE-VECTOR."
+  (declare (important-return-value t))
   ;; The generated result will look something like this.
   ;; (list
   ;;   (list
@@ -374,6 +380,7 @@ regex-string:
   Unique data for each regex group.
 
 Tables are aligned with SYN-REGEX-LIST."
+  (declare (important-return-value t))
   (let ((len (length syn-regex-list)))
     (let ((item-index 0)
           ;; Error checking.
@@ -514,6 +521,7 @@ Tables are aligned with SYN-REGEX-LIST."
   ;; NOTE: use `get-text-property' instead of `get-char-property' so overlays are excluded,
   ;; since this causes overlays with `hl-line-mode' (for example) to mask other faces.
   ;; If we want to include faces of overlays, this could be supported.
+  (declare (important-return-value t))
   (let ((faceprop (get-text-property pos 'face)))
     (cond
      ((facep faceprop)
@@ -530,11 +538,13 @@ Tables are aligned with SYN-REGEX-LIST."
 
 (defun hl-prog-extra--is-doc-state-p (state)
   "Return t, when the comment or string is a doc-string or doc-comment at STATE."
+  (declare (important-return-value t))
   (let ((start (nth 8 state)))
     (hl-prog-extra--check-face-at-point start 'font-lock-doc-face)))
 
 (defun hl-prog-extra--match-impl (bound)
   "MATCHER for the font lock keyword in `hl-prog-extra--data', until BOUND."
+  (declare (important-return-value t))
   (let ((found nil)
         (state-at-pt (syntax-ppss))
         (state-at-pt-next nil)
@@ -676,6 +686,7 @@ Tables are aligned with SYN-REGEX-LIST."
 (defun hl-prog-extra--match-impl-precalc (bound)
   "Set the match state based on pre-calculated values.
 Argument BOUND is only used to validate the state."
+  (declare (important-return-value nil))
   (let ((item (pop hl-prog-extra--data-match-stack)))
     (cond
      (item
@@ -701,6 +712,7 @@ Argument BOUND is only used to validate the state."
 
 (defun hl-prog-extra--match (bound)
   "MATCHER for the font lock keyword in `hl-prog-extra--data', until BOUND."
+  (declare (important-return-value t))
 
   (when hl-prog-extra--data-match-stack
     ;; Ensure stale data from this stack is never used (even though it's unlikely).
@@ -736,6 +748,7 @@ when the preset isn't found.
 The rest are expected to be keyword arguments,
 to control the behavior of each preset,
 see it's documentation for available keywords."
+  (declare (important-return-value t))
   (let ((mode-value nil)
         (quiet nil)
         (args-positional t)
@@ -774,6 +787,7 @@ see it's documentation for available keywords."
 
 (defun hl-prog-extra--mode-enable ()
   "Turn on option `hl-prog-extra-mode' for the current buffer."
+  (declare (important-return-value nil))
   ;; Paranoid.
   (when hl-prog-extra--data
     (font-lock-remove-keywords nil (cdr hl-prog-extra--data)))
@@ -790,6 +804,7 @@ see it's documentation for available keywords."
 
 (defun hl-prog-extra--mode-disable ()
   "Turn off option `hl-prog-extra-mode' for the current buffer."
+  (declare (important-return-value nil))
   (when hl-prog-extra--data
     (font-lock-remove-keywords nil (cdr hl-prog-extra--data))
     (font-lock-flush))
@@ -800,6 +815,7 @@ see it's documentation for available keywords."
 ;;;###autoload
 (defun hl-prog-extra-refresh ()
   "Update internal data after changing `hl-prog-extra-list'."
+  (declare (important-return-value nil))
   (when hl-prog-extra--data
     (hl-prog-extra--mode-disable)
     (hl-prog-extra--mode-enable)))
@@ -818,6 +834,7 @@ see it's documentation for available keywords."
 
 (defun hl-prog-extra--mode-turn-on ()
   "Enable the option `hl-prog-extra-mode' where possible."
+  (declare (important-return-value nil))
   (when (and
          ;; Not already enabled.
          (not hl-prog-extra-mode)

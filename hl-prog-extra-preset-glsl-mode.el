@@ -13,6 +13,7 @@
   "Presets for `glsl-mode' with optional ARGS keyword arguments.
 :no-string-escape
   Don't use escape strings."
+  (declare (important-return-value t))
   ;; Keywords.
 
   (let ((no-string-escape nil)

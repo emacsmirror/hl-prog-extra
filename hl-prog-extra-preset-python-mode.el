@@ -15,6 +15,7 @@
   Don't use escape strings.
 :no-sphinx
   Don't use sphinx in doc-strings."
+  (declare (important-return-value t))
   ;; Keywords.
   (let ((no-string-escape nil)
         (no-sphinx nil)
