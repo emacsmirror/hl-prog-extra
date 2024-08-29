@@ -56,7 +56,7 @@
 (defcustom hl-prog-extra-list
   (list
    ;; Match `http://xyz' (URL)
-   (list "\\<https?://[^[:blank:]]*" 0 'comment 'font-lock-constant-face)
+   (list "\\<https?://[^[:blank:]\n]*" 0 'comment 'font-lock-constant-face)
    ;; Match `<email@address.com>' email address.
    (list "<\\([[:alnum:]\\._-]+@[[:alnum:]\\._-]+\\)>" 1 'comment 'font-lock-constant-face)
 

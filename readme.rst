@@ -163,7 +163,7 @@ This is a more involved example that defines it's own matches, only loading on s
          ;; Match `some.text` as a constant.
          '("\\_<[^`\n]+\\_>" 0 comment font-lock-doc-face)
          ;; Match http://xyz (URL).
-         '("\\<https?://[^[:blank:]]*" 0 comment font-lock-constant-face)
+         '("\\<https?://[^[:blank:]\n]*" 0 comment font-lock-constant-face)
          ;; Match <email@name.foo> email address.
          '("<\\([[:alnum:]\\._-]+@[[:alnum:]\\._-]+\\)>" 1 comment font-lock-constant-face))))
 
