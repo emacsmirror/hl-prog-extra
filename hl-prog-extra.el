@@ -775,10 +775,9 @@ see it's documentation for available keywords."
                 (progn
                   (require preset-sym)
                   t)
-              (error
-               (unless quiet
-                 (message "hl-prog-extra: preset %S not found! (%S)" mode-value err))
-               nil))
+              (error (unless quiet
+                       (message "hl-prog-extra: preset %S not found! (%S)" mode-value err))
+                     nil))
         (apply preset-sym args)))))
 
 
