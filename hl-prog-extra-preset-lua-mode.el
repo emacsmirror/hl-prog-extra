@@ -35,10 +35,9 @@
                (setq no-string-escape v))
               (_ (error "Unknown argument %S" arg-current)))))
          (t
-          (error
-           "Arguments must be keyword, value pairs, found %S = %S"
-           (type-of arg-current)
-           arg-current)))))
+          (error "Arguments must be keyword, value pairs, found %S = %S"
+                 (type-of arg-current)
+                 arg-current)))))
 
     (unless no-string-escape
       ;; See: http://www.lua.org/manual/5.3/manual.html
