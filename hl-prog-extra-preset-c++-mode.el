@@ -1,7 +1,6 @@
 ;;; hl-prog-extra-preset-c++-mode.el --- C++ preset -*- lexical-binding: t -*-
 ;; URL: https://codeberg.org/ideasman42/emacs-hl-prog-extra
 ;; Version: 0.1
-;; Package-Requires: ((emacs "26.2"))
 
 ;;; Commentary:
 ;; Preset for C++.
@@ -65,5 +64,6 @@
 ;; Local Variables:
 ;; fill-column: 99
 ;; indent-tabs-mode: nil
+;; package-lint-main-file: "hl-prog-extra.el"
 ;; End:
 ;;; hl-prog-extra-preset-c++-mode.el ends here
