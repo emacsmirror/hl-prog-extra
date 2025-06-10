@@ -168,7 +168,7 @@ check this buffer.")
     (set-match-data gen-match)))
 
 (defun hl-prog-extra--regexp-valid-or-error (re)
-  "Return nil if RE is a valid regexp, otherwise the error string"
+  "Return nil if RE is a valid regexp, otherwise the error string."
   (declare (important-return-value t))
   (condition-case err
       (prog1 nil
