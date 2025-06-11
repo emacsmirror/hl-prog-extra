@@ -173,7 +173,8 @@ check this buffer.")
   (condition-case err
       (prog1 nil
         (string-match-p re ""))
-    (error (error-message-string err))))
+    (error
+     (error-message-string err))))
 
 (defun hl-prog-extra--maybe-prefix (prefix msg)
   "Prefix MSG with PREFIX or return MSG when nil."
@@ -775,9 +776,10 @@ see it's documentation for available keywords."
                 (progn
                   (require preset-sym)
                   t)
-              (error (unless quiet
-                       (message "hl-prog-extra: preset %S not found! (%S)" mode-value err))
-                     nil))
+              (error
+               (unless quiet
+                 (message "hl-prog-extra: preset %S not found! (%S)" mode-value err))
+               nil))
         (apply preset-sym args)))))
 
 
