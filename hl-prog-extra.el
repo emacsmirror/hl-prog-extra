@@ -44,6 +44,23 @@
   ;; For `pcase-dolist'.
   (require 'pcase))
 
+
+;; ---------------------------------------------------------------------------
+;; Compatibility
+
+(when (and (version< emacs-version "31.1") (not (and (fboundp 'incf) (fboundp 'decf))))
+  (defmacro incf (place &optional delta)
+    "Increment PLACE by DELTA or 1."
+    (declare (debug (gv-place &optional form)))
+    (gv-letplace (getter setter) place
+      (funcall setter `(+ ,getter ,(or delta 1)))))
+  (defmacro decf (place &optional delta)
+    "Decrement PLACE by DELTA or 1."
+    (declare (debug (gv-place &optional form)))
+    (gv-letplace (getter setter) place
+      (funcall setter `(- ,getter ,(or delta 1))))))
+
+
 ;; ---------------------------------------------------------------------------
 ;; Custom VarIables
 
@@ -144,6 +161,7 @@ check this buffer.")
   "Internal data used for `hl-prog-extra--match' to do font locking.")
 (defvar-local hl-prog-extra--data-match-stack-state nil
   "Internal data used to ensure a stale stack is never used.")
+
 
 ;; ---------------------------------------------------------------------------
 ;; Generic Utilities
