@@ -155,7 +155,7 @@ check this buffer.")
   (let ((i 0))
     (while (and match (null (car match)))
       (setq match (cddr match))
-      (setq i (1+ i)))
+      (incf i))
     (cons match i)))
 
 (defun hl-prog-extra--match-index-set (beg end index)
@@ -498,7 +498,7 @@ Tables are aligned with SYN-REGEX-LIST."
                  (t ; Checked for above.
                   (error "Invalid context %S" context-symbol))))))))
 
-        (setq item-index (1+ item-index)))
+        (incf item-index))
 
       (list
        ;; Join all regex groups into single strings.
@@ -766,7 +766,7 @@ see it's documentation for available keywords."
             (0 (setq mode-value arg))
             (1 (setq quiet arg))
             (_ (error "Only two positional arguments must be given")))
-          (setq args-count (1+ args-count))
+          (incf args-count)
           (setq args (cdr args))))))
 
     (unless mode-value
