@@ -31,7 +31,7 @@
 ;;
 ;; If you prefer to enable this per-mode, you may do so using
 ;; mode hooks instead of calling `hl-prog-extra-global-mode'.
-;; The following example enables this for org-mode:
+;; The following example enables this for python-mode:
 ;;
 ;;   (add-hook 'python-mode-hook
 ;;     (lambda ()
@@ -89,7 +89,7 @@
     0
     'comment
     '(:background "#800000" :foreground "#FFFFFF")))
-  "Lists that match faces (context face regex regex-group)
+  "Lists that match faces (regex regex-subexpr context face)
 
 `regex':
   The regular expression to match.
@@ -170,6 +170,7 @@ check this buffer.")
 (defun hl-prog-extra--match-first (match)
   "Return a the first valid group from MATCH and it's zero based index."
   (declare (important-return-value t))
+  ;; Skip the first two elements, group zero which define the entire match.
   (setq match (cddr match))
   (let ((i 0))
     (while (and match (null (car match)))
@@ -270,7 +271,7 @@ check this buffer.")
             ;; Not `listp' ensured by caller.
             (catch 'error
               (unless (symbolp context)
-                (throw 'error (format "expected a symbol or nil!, not a %S" (type-of context))))
+                (throw 'error (format "expected a symbol or nil, not a %S" (type-of context))))
               (unless (memq context item-context-valid-items)
                 (throw 'error
                        (format "unexpected symbol %S, expected a value in %S!"
@@ -491,6 +492,9 @@ Tables are aligned with SYN-REGEX-LIST."
                   (push (vconcat uniq-index-multi) uniq-list)
                   (puthash key uniq-index uniq-list-contents))))
 
+            ;; Group the regex into a larger numbered regex using \\(?NUM:...)
+            ;; these expressions are then joined to make a single regex
+            ;; (per-unique context combination) outside of this loop.
             (let ((regex-fmt (format "\\(?%d:%s\\)" (1+ uniq-index) re)))
               (dolist (context-symbol context)
                 (cond
