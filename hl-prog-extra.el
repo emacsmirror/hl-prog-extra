@@ -80,7 +80,7 @@
 
    ;; Highlight `TODO` or `TODO(text): and similar.
    (list
-    "\\<\\(TODO\\|NOTE\\)\\>\\(([^)+]+)\\)?"
+    "\\<\\(TODO\\|NOTE\\)\\>\\(([^)]+)\\)?"
     0
     'comment
     '(:background "#006000" :foreground "#FFFFFF"))
