@@ -223,7 +223,7 @@ check this buffer.")
          (validate-re-fn
           (lambda (re)
             (catch 'error
-              (when (not (stringp re))
+              (unless (stringp re)
                 (throw 'error (format "expected a string, not a %S!" (type-of re))))
 
               (let ((item-error (hl-prog-extra--regexp-valid-or-error re)))
@@ -305,7 +305,7 @@ check this buffer.")
          (validate-face-single-fn
           (lambda (face)
             (catch 'error
-              (when (not (or (facep face) (listp face)))
+              (unless (or (facep face) (listp face))
                 (throw
                  'error
                  (format
@@ -323,7 +323,7 @@ check this buffer.")
                     (throw 'error error-msg))))
 
               ;; Now check the face list is compatible with `re-subexpr'.
-              (when (not (eq (length re-subexpr) (length face)))
+              (unless (eq (length re-subexpr) (length face))
                 (throw 'error "list lengths do not match!")))))
 
          (validate-face-fn
