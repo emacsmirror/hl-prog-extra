@@ -292,7 +292,7 @@ check this buffer.")
             (cond
              ((null context) ; Do nothing (correct input).
               nil)
-             ((not (listp context))
+             ((null (listp context))
               (funcall validate-context-single-fn context))
              ((listp context)
               (funcall validate-context-list-fn context))
@@ -329,7 +329,7 @@ check this buffer.")
          (validate-face-fn
           (lambda (face re-subexpr)
             (cond
-             ((not (listp re-subexpr))
+             ((null (listp re-subexpr))
               (funcall validate-face-single-fn face))
              (t ; List.
               (funcall validate-face-list-fn face re-subexpr))))))
@@ -368,9 +368,9 @@ check this buffer.")
         ;; Without this, a face that is not yet loaded will raise an error in font lock.
         (when (or
                ;; Quote unquoted symbol.
-               (and (symbolp face) (not (boundp face)))
+               (and (symbolp face) (null (boundp face)))
                ;; Quote unquoted list.
-               (and (consp face) (not (eq 'quote (car face)))))
+               (and (consp face) (null (eq 'quote (car face)))))
           (setq face (list 'quote face)))
 
         ;; The first number is the regex-group to match (starting at 1).
@@ -745,9 +745,9 @@ Argument BOUND is only used to validate the state."
            ;; Should never happen, check more for correctness.
            (null hl-prog-extra--data-match-stack-state)
            ;; The point moved since last search.
-           (not (eq (point) (car hl-prog-extra--data-match-stack-state)))
+           (null (eq (point) (car hl-prog-extra--data-match-stack-state)))
            ;; The bound moved since last search.
-           (not (eq bound (cdr hl-prog-extra--data-match-stack-state))))
+           (null (eq bound (cdr hl-prog-extra--data-match-stack-state))))
 
       (setq hl-prog-extra--data-match-stack-state nil)
       (setq hl-prog-extra--data-match-stack nil)))
@@ -863,17 +863,17 @@ see it's documentation for available keywords."
          ;; Not already enabled.
          (not hl-prog-extra-mode)
          ;; Not in the mini-buffer.
-         (not (minibufferp))
+         (null (minibufferp))
          ;; Not a special mode (package list, tabulated data ... etc)
          ;; Instead the buffer is likely derived from `text-mode' or `prog-mode'.
-         (not (derived-mode-p 'special-mode))
+         (null (derived-mode-p 'special-mode))
          ;; Not explicitly ignored.
-         (not (memq major-mode hl-prog-extra-global-ignore-modes))
+         (null (memq major-mode hl-prog-extra-global-ignore-modes))
          ;; Optionally check if a function is used.
          (or (null hl-prog-extra-global-ignore-buffer)
              (cond
               ((functionp hl-prog-extra-global-ignore-buffer)
-               (not (funcall hl-prog-extra-global-ignore-buffer (current-buffer))))
+               (null (funcall hl-prog-extra-global-ignore-buffer (current-buffer))))
               (t
                nil))))
     (hl-prog-extra-mode 1)))
