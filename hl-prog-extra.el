@@ -13,10 +13,10 @@
 ;;; Commentary:
 
 ;; This package provides an easy way to highlight words in programming modes,
-;; where terms can be highlighted on code, comments or strings.
+;; where terms can be highlighted in code, comments or strings.
 ;;
 
-;;; Usage
+;;; Usage:
 
 ;;
 ;; Write the following code to your .emacs file:
@@ -41,7 +41,7 @@
 ;;; Code:
 
 (eval-when-compile
-  ;; For `pcase-dolist'.
+  ;; For `pcase-dolist', `pcase-let'.
   (require 'pcase))
 
 
@@ -63,33 +63,33 @@
 
 
 ;; ---------------------------------------------------------------------------
-;; Custom VarIables
+;; Custom Variables
 
 (defgroup hl-prog-extra nil
   "Custom additional user-defined faces for comments/strings or code."
   :group 'faces)
 
-;; Default to URL's and email addresses, avoid adding too many here
-;; as users may want to extend to this list for their own purposes.
+;; Default to URLs and email addresses, avoid adding too many here
+;; as users may want to extend this list for their own purposes.
 (defcustom hl-prog-extra-list
   (list
    ;; Match `http://xyz' (URL)
    (list "\\<https?://[^[:blank:]\n]*" 0 'comment 'font-lock-constant-face)
    ;; Match `<email@address.com>' email address.
-   (list "<\\([[:alnum:]\\._-]+@[[:alnum:]\\._-]+\\)>" 1 'comment 'font-lock-constant-face)
+   (list "<\\([[:alnum:]._-]+@[[:alnum:]._-]+\\)>" 1 'comment 'font-lock-constant-face)
 
-   ;; Highlight `TODO` or `TODO(text): and similar.
+   ;; Highlight "TODO" or "TODO(text):" and similar.
    (list
     "\\<\\(TODO\\|NOTE\\)\\>\\(([^)]+)\\)?"
     0
     'comment
     '(:background "#006000" :foreground "#FFFFFF"))
    (list
-    "\\<\\(FIXME\\|XXX\\|WARNING\\|BUG\\)\\>\\(([^)+]+)\\)?"
+    "\\<\\(FIXME\\|XXX\\|WARNING\\|BUG\\)\\>\\(([^)]+)\\)?"
     0
     'comment
     '(:background "#800000" :foreground "#FFFFFF")))
-  "Lists that match faces (regex regex-subexpr context face)
+  "List of patterns that define face matches (regex regex-subexpr context face)
 
 `regex':
   The regular expression to match.
@@ -103,7 +103,7 @@
   - `'string' - All strings.
   - `'string-only' - Only non-documentation strings.
   - `'string-doc' - Documentation strings.
-  - nil - Non comments or strings (other source-code).
+  - nil - Neither comments nor strings (other source-code).
 
   This limits the highlighting to only these parts of the text,
   where nil is used for anything that doesn't match a comment or string.
@@ -113,8 +113,8 @@
 `face':
   The face to apply.
 
-Modifying this while variable `hl-prog-extra-mode' is enabled requires calling
-`hl-prog-extra-refresh'to update the internal state."
+Modifying this while the variable `hl-prog-extra-mode' is enabled requires calling
+`hl-prog-extra-refresh' to update the internal state."
   :type
   '(repeat
     (list
@@ -132,7 +132,7 @@ Modifying this while variable `hl-prog-extra-mode' is enabled requires calling
      face)))
 
 (defcustom hl-prog-extra-preset nil
-  "Include the default preset for the major modes (when available)."
+  "Include the default preset for the major mode (when available)."
   :type 'boolean)
 
 (defcustom hl-prog-extra-global-ignore-modes nil
@@ -143,8 +143,7 @@ Modifying this while variable `hl-prog-extra-mode' is enabled requires calling
   "When non-nil, Global `hl-prog-extra' will not be enabled for this buffer.
 This variable can also be a predicate function, in which case
 it'll be called with one parameter (the buffer in question), and
-it should return non-nil to make Global `hl-prog-extra' Mode not
-check this buffer.")
+it should return non-nil to exclude this buffer from Global `hl-prog-extra' Mode.")
 
 
 ;; ---------------------------------------------------------------------------
@@ -153,9 +152,9 @@ check this buffer.")
 (defvar-local hl-prog-extra--data nil
   "Internal data used for `hl-prog-extra--match' to do font locking.")
 
-;; NOTE: Accumulating values in in keyword parser doesn't have any
-;; problems in the common case but isn't totally fool-proof.
-;; If parsing is interrupted  for any reason (for e.g.)
+;; NOTE: Accumulating values in the keyword parser doesn't have any
+;; problems in the common case but isn't totally foolproof.
+;; If parsing is interrupted for any reason (e.g. subsequent user input),
 ;; stale keyword highlighting data could be left in the stack.
 ;; To avoid using stale data, ensure the state is what we expect from the last call.
 (defvar-local hl-prog-extra--data-match-stack nil
@@ -168,9 +167,9 @@ check this buffer.")
 ;; Generic Utilities
 
 (defun hl-prog-extra--match-first (match)
-  "Return a the first valid group from MATCH and it's zero based index."
+  "Return the first valid group from MATCH and its zero-based index."
   (declare (important-return-value t))
-  ;; Skip the first two elements, group zero which define the entire match.
+  ;; Skip the first two elements (group zero, which defines the entire match).
   (setq match (cddr match))
   (let ((i 0))
     (while (and match (null (car match)))
@@ -197,7 +196,7 @@ check this buffer.")
      (error-message-string err))))
 
 (defun hl-prog-extra--maybe-prefix (prefix msg)
-  "Prefix MSG with PREFIX or return MSG when nil."
+  "Return MSG prefixed with PREFIX, or nil if MSG is nil."
   (declare (important-return-value t))
   (cond
    ((null msg)
@@ -209,7 +208,7 @@ check this buffer.")
 ;; Pre-Compute Font Locking
 
 (defun hl-prog-extra--validate-keyword-item (item)
-  "Validate ITEM, return an message or nil on success."
+  "Validate ITEM, return a message or nil on success."
   (declare (important-return-value t))
   (let* ((item-context-valid-items
           (list
@@ -235,7 +234,7 @@ check this buffer.")
 
          (validate-re-subexpr-single-fn
           (lambda (re-subexpr)
-            ;; `intergerp' ensured by caller.
+            ;; `integerp' ensured by caller.
             (catch 'error
               (when (< re-subexpr 0)
                 (throw 'error "cannot be negative!")))))
@@ -268,7 +267,7 @@ check this buffer.")
 
          (validate-context-single-fn
           (lambda (context)
-            ;; Not `listp' ensured by caller.
+            ;; Caller ensures this is not a list.
             (catch 'error
               (unless (symbolp context)
                 (throw 'error (format "expected a symbol or nil, not a %S" (type-of context))))
@@ -292,12 +291,10 @@ check this buffer.")
             (cond
              ((null context) ; Do nothing (correct input).
               nil)
-             ((null (listp context))
-              (funcall validate-context-single-fn context))
              ((listp context)
               (funcall validate-context-list-fn context))
-             (t
-              (format "expected a list or symbol, not a %S!" (type-of context))))))
+             (t ; Expected to be a symbol.
+              (funcall validate-context-single-fn context)))))
 
          ;; ---------------------------
          ;; Check `face', 4th argument.
@@ -309,7 +306,7 @@ check this buffer.")
                 (throw
                  'error
                  (format
-                  "expected a symbol, string, face or list of face properties. %S is not known!"
+                  "expected a symbol, string, face, or list of face properties; %S is not known!"
                   face))))))
 
          (validate-face-list-fn
@@ -322,7 +319,7 @@ check this buffer.")
                   (when error-msg
                     (throw 'error error-msg))))
 
-              ;; Now check the face list is compatible with `re-subexpr'.
+              ;; Now check that the face list is compatible with `re-subexpr'.
               (unless (eq (length re-subexpr) (length face))
                 (throw 'error "list lengths do not match!")))))
 
@@ -343,7 +340,7 @@ check this buffer.")
        (hl-prog-extra--maybe-prefix "1st (regex) " (funcall validate-re-fn re))
        ;; Check `re-subexpr' (2nd).
        (hl-prog-extra--maybe-prefix "2nd (sub-expr) " (funcall validate-re-subexpr-fn re-subexpr))
-       ;; Check `context' (3rd), coerced into a list or left as nil.
+       ;; Check `context' (3rd).
        (hl-prog-extra--maybe-prefix "3rd (context) " (funcall validate-context-fn context))
        ;; Check `face' (4th).
        (hl-prog-extra--maybe-prefix "4th (face) " (funcall validate-face-fn face re-subexpr))))))
@@ -358,7 +355,7 @@ check this buffer.")
   ;;     'hl-prog-extra--match
   ;;     (cons 2 (list 'font-lock-string-face t t))
   ;;     (cons 1 (list 'font-lock-warning-face t t))
-  ;;     (cons 0 (list 'font-lock-constant-face t t))
+  ;;     (cons 0 (list 'font-lock-constant-face t t))))
   ;;
   ;; Counting down is important so the first matching group that is met is used.
   (let ((keywords (list)))
@@ -376,8 +373,8 @@ check this buffer.")
         ;; The first number is the regex-group to match (starting at 1).
         ;;
         ;; The two booleans after `face' are:
-        ;; - Ignore error, this is important as the groups start with the highest number first.
-        ;; - Counting down. If a match isn't met, keep looking and don't error.
+        ;; - OVERRIDE: if non-nil, allow overriding existing fontification.
+        ;; - LAXMATCH: if non-nil, don't signal error when SUBEXP has no match.
         (push (cons (1+ i) (list face t t)) keywords)))
 
     (setq keywords (nreverse keywords))
@@ -390,52 +387,54 @@ check this buffer.")
 (defun hl-prog-extra--precompute-regex (syn-regex-list)
   "Pre-compute data from the SYN-REGEX-LIST.
 
-Return (re-string face-table) where:
+Return a list of (regex-list face-vector uniq-vector is-complex-comment is-complex-string):
 
-regex-string:
-  A list of 3 strings containing grouped regex statements from SYN-REGEX-LIST.
-
-`face-list':
-  Unique faces.
-`uniq-list':
-  Unique data for each regex group.
-
-Tables are aligned with SYN-REGEX-LIST."
+`regex-list':
+  A list of 5 strings (or nil) containing grouped regex statements from SYN-REGEX-LIST
+  for: comment-only, comment-doc, string-only, string-doc, and other contexts.
+`face-vector':
+  A vector of unique faces.
+`uniq-vector':
+  A vector of unique data for each regex group.
+`is-complex-comment':
+  Non-nil when comment-only and comment-doc differ.
+`is-complex-string':
+  Non-nil when string-only and string-doc differ."
   (declare (important-return-value t))
   (let ((len (length syn-regex-list)))
     (let ((item-index 0)
           ;; Error checking.
-          (item-error-prefix "hl-prog-extra, error parsing `hl-prog-extra-list'")
+          (item-error-prefix "hl-prog-extra: error parsing `hl-prog-extra-list'")
 
-          ;; Group regex by the context they search in.
+          ;; Group regexes by the context they search in.
           (re-comment-only (list))
           (re-comment-doc (list))
           (re-string-only (list))
           (re-string-doc (list))
           (re-rest (list))
-          ;; Store variables for the doc/only variables are different.
+          ;; Store whether the doc/only variables are different.
           ;; This is useful since calculating this information is expensive.
           (is-complex-comment nil)
           (is-complex-string nil)
 
-          ;; Unique faces, use to build the arguments for font locking.
+          ;; Unique faces, used to build the arguments for font locking.
           (face-list (list))
           (face-list-contents (make-hash-table :test 'eq :size len))
           ;; Unique values aligned with the regex groups.
-          ;; Each element be a list if other kinds of data needs to be referenced.
+          ;; Each element may be a list if other kinds of data need to be referenced.
           (uniq-list (list))
-          ;; Use `equal` so vector can be used as keys.
+          ;; Use `equal' so vectors can be used as keys.
           (uniq-list-contents (make-hash-table :test 'equal :size len)))
 
       (pcase-dolist (`(,re ,re-subexpr ,context ,face) syn-regex-list)
 
         ;; Ensure the context is a list (users may provide a single symbol).
-        ;; Supporting both is nice as it allows multiples contexts to be used at once.
+        ;; Supporting both is nice as it allows multiple contexts to be used at once.
         (unless (and context (listp context))
           (setq context (list context)))
 
         (let ((error-msg
-               ;; Be strict here since any errors on font-locking are difficult for users to debug.
+               ;; Be strict here since any errors in font-locking are difficult for users to debug.
                (hl-prog-extra--validate-keyword-item (list re re-subexpr context face)))
 
               ;; Handle cases with multiple sub-expressions.
@@ -463,7 +462,7 @@ Tables are aligned with SYN-REGEX-LIST."
                     (face-sub (pop face)))
 
                 ;; Note that a zero `re-sub' is not the same as nil,
-                ;; since a zero group is needed for matching the first level of parenthesis.
+                ;; since a zero group is needed for matching the first level of parentheses.
 
                 (let ((key face-sub))
                   (setq face-index (gethash key face-list-contents))
@@ -492,8 +491,8 @@ Tables are aligned with SYN-REGEX-LIST."
                   (push (vconcat uniq-index-multi) uniq-list)
                   (puthash key uniq-index uniq-list-contents))))
 
-            ;; Group the regex into a larger numbered regex using \\(?NUM:...)
-            ;; these expressions are then joined to make a single regex
+            ;; Group the regex into a larger numbered regex using \\(?NUM:...).
+            ;; These expressions are then joined to make a single regex
             ;; (per-unique context combination) outside of this loop.
             (let ((regex-fmt (format "\\(?%d:%s\\)" (1+ uniq-index) re)))
               (dolist (context-symbol context)
@@ -543,7 +542,7 @@ Tables are aligned with SYN-REGEX-LIST."
 (defun hl-prog-extra--check-face-at-point (pos face-test)
   "Return t when FACE-TEST is used at POS."
   ;; NOTE: use `get-text-property' instead of `get-char-property' so overlays are excluded,
-  ;; since this causes overlays with `hl-line-mode' (for example) to mask other faces.
+  ;; since including overlays causes `hl-line-mode' (for example) to mask other faces.
   ;; If we want to include faces of overlays, this could be supported.
   (declare (important-return-value t))
   (let ((faceprop (get-text-property pos 'face)))
@@ -561,7 +560,7 @@ Tables are aligned with SYN-REGEX-LIST."
       nil))))
 
 (defun hl-prog-extra--is-doc-state-p (state)
-  "Return t, when the comment or string is a doc-string or doc-comment at STATE."
+  "Return t when the comment or string is a doc-string or doc-comment at STATE."
   (declare (important-return-value t))
   (let ((start (nth 8 state)))
     (hl-prog-extra--check-face-at-point start 'font-lock-doc-face)))
@@ -575,10 +574,12 @@ Tables are aligned with SYN-REGEX-LIST."
         (info (car hl-prog-extra--data))
         ;; Always case sensitive.
         (case-fold-search nil))
-    ;; Unpack `car' of info, (first block), remainder unpacks the `cdr' of info.
+    ;; Unpack the first element of info; the remainder unpacks from the rest.
     (pcase-let ((`(,`(,re-comment-only ,re-comment-doc ,re-string-only ,re-string-doc ,re-rest)
-                   ;; Second block.
-                   ,_ ,uniq-array ,is-complex-comment ,is-complex-string)
+                   ,_
+                   ,uniq-array
+                   ,is-complex-comment
+                   ,is-complex-string)
                  info))
       (while (and (null found) (< (point) bound))
         (let ((re-context
@@ -609,16 +610,16 @@ Tables are aligned with SYN-REGEX-LIST."
 
                   (bound-context-clamp nil))
 
-              ;; Without this, the beginning of a comment is seen as code,
-              ;; in practice this means C-style comments such as `/*XXX*/',
+              ;; Without this, the beginning of a comment is seen as code.
+              ;; In practice this means C-style comments such as `/*XXX*/'
               ;; end up considering the first two characters as code.
               ;; This causes problems if we want to highlight operators,
-              ;; eg: `*' or `/' characters.
+              ;; e.g.: `*' or `/' characters.
               ;; Avoid this by further clamping the context not to step
               ;; into the beginning of a comment or string.
               ;; Note that this introduces 'gaps', where the beginnings of
               ;; comments can't be matched.
-              ;; Properly adjusting all beginnings and ends ends up being quite
+              ;; Properly adjusting all beginnings and endings ends up being quite
               ;; complex since state isn't maintained between calls to this function.
               ;; So unless there is an important use-case for this, accept the limitation since
               ;; not being able to properly match symbols in code is a much larger limitation.
@@ -630,16 +631,16 @@ Tables are aligned with SYN-REGEX-LIST."
               (cond
                ((re-search-forward re-context (or bound-context-clamp bound-context) t)
                 (setq found t)
-                ;; The `uniq-index' is always needed so the original font can be found
-                ;; and so it's possible to check for a sub-expression.
+                ;; The `uniq-index' is always needed to find the original font
+                ;; and to check for a sub-expression.
                 (pcase-let* ((`(,match-tail . ,uniq-index)
                               (hl-prog-extra--match-first (match-data)))
                              (`(,beg-final ,end-final) match-tail))
 
                   (let ((uniq-data (aref uniq-array uniq-index)))
                     (cond
-                     ;; This is really an indirection (list of unique indices).
-                     ;; `uniq-data' is a list of indices into `uniq-array'.
+                     ;; This is really an indirection (vector of unique indices).
+                     ;; `uniq-data' is a vector of indices into `uniq-array'.
                      ((vectorp uniq-data)
                       (let ((beg-end-index-list (list)))
                         (dotimes (i (length uniq-data))
@@ -678,8 +679,8 @@ Tables are aligned with SYN-REGEX-LIST."
                         (pcase-let ((`(,sub-expr . ,face-index) uniq-data))
                           (when sub-expr
                             (pcase-let ((`(,beg ,end) (nthcdr (* 2 sub-expr) match-tail)))
-                              ;; The configuration may have an out of range `sub-expr'
-                              ;; just ignore this and use the whole expression since raising
+                              ;; The configuration may have an out of range `sub-expr',
+                              ;; just ignore this and use the whole expression, since raising
                               ;; an error during font-locking in this case isn't practical.
                               (when (and beg end)
                                 (setq beg-final beg)
@@ -692,7 +693,7 @@ Tables are aligned with SYN-REGEX-LIST."
                            face-index)))))))
 
                 (when bound-context-clamp
-                  ;; If the clamped bounds is met, step to the un-clamped bounds.
+                  ;; If the clamped bounds are met, step to the unclamped bounds.
                   (when (>= (point) bound-context-clamp)
                     (goto-char bound-context))))
 
@@ -709,7 +710,7 @@ Tables are aligned with SYN-REGEX-LIST."
 
 (defun hl-prog-extra--match-impl-precalc (bound)
   "Set the match state based on pre-calculated values.
-Argument BOUND is only used to validate the state."
+BOUND is only used to validate the state."
   (declare (important-return-value nil))
   (let ((item (pop hl-prog-extra--data-match-stack)))
     (cond
@@ -723,7 +724,7 @@ Argument BOUND is only used to validate the state."
                (hl-prog-extra--data-match-stack
                 ;; Go to the beginning of the next match to prevent the bounds from being reached.
                 (goto-char (min (car (car hl-prog-extra--data-match-stack)) bound))
-                ;; Check this is unchanged on re-entry.
+                ;; Check that this is unchanged on re-entry.
                 (cons (point) bound))
                (t
                 ;; Go to the end since there is no further data to parse.
@@ -742,7 +743,7 @@ Argument BOUND is only used to validate the state."
     ;; Ensure stale data from this stack is never used (even though it's unlikely).
     ;; See `hl-prog-extra--data-match-stack-state' for details.
     (when (or
-           ;; Should never happen, check more for correctness.
+           ;; Should never happen, added check for extra safety.
            (null hl-prog-extra--data-match-stack-state)
            ;; The point moved since last search.
            (null (eq (point) (car hl-prog-extra--data-match-stack-state)))
@@ -764,14 +765,14 @@ Argument BOUND is only used to validate the state."
 
 ;;;###autoload
 (defun hl-prog-extra-preset (&rest args)
-  "Load a preset for current mode.
-ARGS the first two arguments are positional,
+  "Load a preset for the current mode.
+ARGS: The first two arguments are positional.
 The first is MODE-VALUE to override the current `major-mode'.
-The second is QUIET, when non-nil, don't show a message
+The second is QUIET; when non-nil, don't show a message
 when the preset isn't found.
-The rest are expected to be keyword arguments,
-to control the behavior of each preset,
-see it's documentation for available keywords."
+The rest are expected to be keyword arguments
+to control the behavior of each preset;
+see each preset's documentation for available keywords."
   (declare (important-return-value t))
   (let ((mode-value nil)
         (quiet nil)
@@ -788,12 +789,15 @@ see it's documentation for available keywords."
           (pcase args-count
             (0 (setq mode-value arg))
             (1 (setq quiet arg))
-            (_ (error "Only two positional arguments must be given")))
+            (_ (error "Too many positional arguments")))
           (incf args-count)
           (setq args (cdr args))))))
 
     (unless mode-value
       (setq mode-value (symbol-name major-mode)))
+    ;; NOTE: `intern-soft' could be used to avoid adding symbols to the obarray
+    ;; for presets that don't exist, however `require' is still needed to load
+    ;; the feature, so error handling remains necessary either way.
     (let ((preset-sym (intern (concat "hl-prog-extra-preset-" mode-value))))
       (when (condition-case err
                 (progn
@@ -812,7 +816,7 @@ see it's documentation for available keywords."
 (defun hl-prog-extra--mode-enable ()
   "Turn on option `hl-prog-extra-mode' for the current buffer."
   (declare (important-return-value nil))
-  ;; Paranoid.
+  ;; Unlikely, but remove any existing keywords to avoid duplicates.
   (when hl-prog-extra--data
     (font-lock-remove-keywords nil (cdr hl-prog-extra--data)))
 
@@ -864,12 +868,12 @@ see it's documentation for available keywords."
          (not hl-prog-extra-mode)
          ;; Not in the mini-buffer.
          (null (minibufferp))
-         ;; Not a special mode (package list, tabulated data ... etc)
-         ;; Instead the buffer is likely derived from `text-mode' or `prog-mode'.
+         ;; Not a special mode (package list, tabulated data, ...)
+         ;; The buffer should be derived from `text-mode' or `prog-mode'.
          (null (derived-mode-p 'special-mode))
          ;; Not explicitly ignored.
          (null (memq major-mode hl-prog-extra-global-ignore-modes))
-         ;; Optionally check if a function is used.
+         ;; If `hl-prog-extra-global-ignore-buffer' is a function, call it.
          (or (null hl-prog-extra-global-ignore-buffer)
              (cond
               ((functionp hl-prog-extra-global-ignore-buffer)
