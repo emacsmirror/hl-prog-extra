@@ -800,12 +800,11 @@ see each preset's documentation for available keywords."
     ;; the feature, so error handling remains necessary either way.
     (let ((preset-sym (intern (concat "hl-prog-extra-preset-" mode-value))))
       (when (condition-case err
-                (progn
-                  (require preset-sym)
-                  t)
+                (require preset-sym nil 'noerror)
               (error
-               (unless quiet
-                 (message "hl-prog-extra: preset %S not found! (%S)" mode-value err))
+               (lwarn
+                'hl-prog-extra
+                :error "preset %S failed: %s" mode-value (error-message-string err))
                nil))
         (apply preset-sym args)))))
 
