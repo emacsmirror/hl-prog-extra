@@ -10,7 +10,7 @@ Highlighting definitions is applied separately to comments, strings or other cod
 
 While this can be used to highlight arbitrary expressions, common use cases include:
 
-- URL's and emails in comments.
+- URLs and emails in comments.
 - Issue tracker ticket numbers in comments.
 - Literal text using quotes or back-ticks.
 - Tags such as ``TODO``, ``FIXME`` etc.
@@ -87,7 +87,7 @@ Customization
 
       May also be a list of faces, see the `Multi-Group Matching`_ example.
 
-   This defaults to matching URL's and email addresses.
+   This defaults to matching URLs and email addresses.
 
 ``hl-prog-extra-preset`` nil
    When non-nil, include presets for the current major-mode (when available).
@@ -143,7 +143,7 @@ Presets for other modes are welcome.
 Example
 -------
 
-Without any configuration, enabling the mode globally will highlight URL's and email addresses within comments:
+Without any configuration, enabling the mode globally will highlight URLs and email addresses within comments:
 
 .. code-block:: elisp
 
@@ -175,7 +175,7 @@ This is a more involved example that defines it's own matches, only loading on s
 Multi-Group Matching
 ^^^^^^^^^^^^^^^^^^^^
 
-Withing a single expression match you may wish to assign multiple faces.
+Within a single expression match you may wish to assign multiple faces.
 
 This is supported by using lists for ``regex-subexpr`` & ``face`` settings.
 
@@ -188,22 +188,23 @@ This example configuration shows how multiple matches can be used with tags in c
 
    (setq hl-prog-extra-list
      (list
-       "\\<\\(NOTE\\)\\>\\((\\([^)]+\\))\\)?" '(0 3) 'comment
        (list
-         '(:background "#006000" :foreground "#FFFFFF")
-         '(:background "#006000" :foreground "#BBBBBB")))
+         "\\<\\(NOTE\\)\\>\\((\\([^)]+\\))\\)?" '(0 3) 'comment
+         (list
+           '(:background "#006000" :foreground "#FFFFFF")
+           '(:background "#006000" :foreground "#BBBBBB")))
 
-     (list
-       "\\<\\(TODO\\|WORKAROUND\\)\\>\\((\\([^)]+\\))\\)?" '(0 3) 'comment
        (list
-         '(:background "#707000" :foreground "#FFFFFF")
-         '(:background "#707000" :foreground "#BBBBBB")))
+         "\\<\\(TODO\\|WORKAROUND\\)\\>\\((\\([^)]+\\))\\)?" '(0 3) 'comment
+         (list
+           '(:background "#707000" :foreground "#FFFFFF")
+           '(:background "#707000" :foreground "#BBBBBB")))
 
-     (list
-       "\\<\\(FIXME\\|XXX\\|WARNING\\)\\>\\((\\([^)]+\\))\\)?" '(0 3) 'comment
        (list
-         '(:background "#800000" :foreground "#FFFFFF")
-         '(:background "#800000" :foreground "#BBBBBB"))))
+         "\\<\\(FIXME\\|XXX\\|WARNING\\)\\>\\((\\([^)]+\\))\\)?" '(0 3) 'comment
+         (list
+           '(:background "#800000" :foreground "#FFFFFF")
+           '(:background "#800000" :foreground "#BBBBBB")))))
 
 
 Details
@@ -247,7 +248,7 @@ Further Work
 ============
 
 - Elements could optionally be made into links,
-  allowing project specific but-tracker tickets to open URL's when clicked on for e.g.
+  allowing project specific bug-tracker tickets to open URLs when clicked on for e.g.
 
 - A predicate function could be (optionally) defined to perform additional checks before highlighting,
   this would allow checking additional context when considering matches.
