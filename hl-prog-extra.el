@@ -806,7 +806,13 @@ see each preset's documentation for available keywords."
                 'hl-prog-extra
                 :error "preset %S failed: %s" mode-value (error-message-string err))
                nil))
-        (apply preset-sym args)))))
+        (cond
+         ((fboundp preset-sym)
+          (apply preset-sym args))
+         (t
+          (lwarn
+           'hl-prog-extra
+           :error "preset %S loaded but did not define function `%S'" mode-value preset-sym)))))))
 
 
 ;; ---------------------------------------------------------------------------
