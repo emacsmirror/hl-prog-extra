@@ -562,7 +562,7 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
 (defun hl-prog-extra--is-doc-state-p (state)
   "Return t when the comment or string is a doc-string or doc-comment at STATE."
   (declare (important-return-value t))
-  (let ((start (nth 8 state)))
+  (let ((start (ppss-comment-or-string-start state)))
     (hl-prog-extra--check-face-at-point start 'font-lock-doc-face)))
 
 (defun hl-prog-extra--match-impl (bound)
@@ -584,13 +584,13 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
       (while (and (null found) (< (point) bound))
         (let ((re-context
                (cond
-                ((nth 3 state-at-pt)
+                ((ppss-string-terminator state-at-pt)
                  (cond
                   ((and is-complex-string (hl-prog-extra--is-doc-state-p state-at-pt))
                    re-string-doc)
                   (t
                    re-string-only)))
-                ((nth 4 state-at-pt)
+                ((ppss-comment-depth state-at-pt)
                  (cond
                   ((and is-complex-comment (hl-prog-extra--is-doc-state-p state-at-pt))
                    re-comment-doc)
@@ -623,8 +623,9 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
               ;; complex since state isn't maintained between calls to this function.
               ;; So unless there is an important use-case for this, accept the limitation since
               ;; not being able to properly match symbols in code is a much larger limitation.
-              (when (or (nth 3 state-at-pt-next) (nth 4 state-at-pt-next))
-                (let ((comment-or-string-start (nth 8 state-at-pt-next)))
+              (when (or (ppss-string-terminator state-at-pt-next)
+                        (ppss-comment-depth state-at-pt-next))
+                (let ((comment-or-string-start (ppss-comment-or-string-start state-at-pt-next)))
                   (when (<= (point) comment-or-string-start)
                     (setq bound-context-clamp comment-or-string-start))))
 
