@@ -50,6 +50,10 @@ Customization
 
    ``regex``
       The regular expression to match.
+
+      Every rule is combined into a single regular expression which numbers the
+      groups, so the expression must not number its own (``\(?1:..\)``).
+      Rules which do are reported and skipped.
    ``regex-subexpr``
       Group to use when highlighting the expression (zero for the entire expression).
 

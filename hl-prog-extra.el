@@ -93,6 +93,10 @@
 
 `regex':
   The regular expression to match.
+
+  Every item is combined into a single regular expression which numbers the
+  groups, so the expression must not number its own (\"\\\\(?1:..\\\\)\").
+  Items which do are reported and skipped.
 `regex-subexpr':
   Group to use when highlighting the expression (zero for the whole match).
 `context':
@@ -195,6 +199,33 @@ it should return non-nil to exclude this buffer from Global `hl-prog-extra' Mode
     (error
      (error-message-string err))))
 
+(defun hl-prog-extra--regexp-group-number-first (re)
+  "Return the number of the first explicitly numbered group in RE, otherwise nil."
+  (declare (important-return-value t))
+  ;; NOTE: `save-match-data' since this runs when the mode is enabled,
+  ;; where clobbering the caller's match data would be surprising.
+  ;; This follows `regexp-opt-depth' which scans for groups the same way.
+  (save-match-data
+    (let ((pos 0)
+          (result nil))
+      (while (and (null result) (string-match "\\\\(\\?\\([0-9]+\\):" re pos))
+        ;; NOTE: read the match before `subregexp-context-p' which overwrites the match data.
+        (let ((beg (match-beginning 0))
+              (group-num (string-to-number (match-string 1 re))))
+          (setq pos (match-end 0))
+          ;; Skip a false positive inside brackets or after an escaped backslash.
+          ;;
+          ;; NOTE: `subregexp-context-p' parses RE from its start on every check,
+          ;; `regexp-opt-depth' avoids this by passing the end of the last group
+          ;; it confirmed as START. That doesn't transfer here, the first
+          ;; confirmed match ends this scan, so there is never a confirmed
+          ;; position behind a check to pass, only false positives scan again.
+          ;; In practice expressions with enough of them for the re-parsing to
+          ;; matter are rare, so leave as-is.
+          (when (subregexp-context-p re beg)
+            (setq result group-num))))
+      result)))
+
 (defun hl-prog-extra--maybe-prefix (prefix msg)
   "Return MSG prefixed with PREFIX, or nil if MSG is nil."
   (declare (important-return-value t))
@@ -223,13 +254,19 @@ it should return non-nil to exclude this buffer from Global `hl-prog-extra' Mode
           (lambda (re)
             ;; NOTE: each check only runs once those before it pass,
             ;; the order matters since they build on each other.
-            (let ((item-error nil))
+            (let ((item-error nil)
+                  (group-num nil))
               (cond
                ((null (stringp re))
                 (format "expected a string, not a %S!" (type-of re)))
 
                ((setq item-error (hl-prog-extra--regexp-valid-or-error re))
-                (format "invalid regex \"%s\"" item-error))))))
+                (format "invalid regex \"%s\"" item-error))
+
+               ;; Each item is wrapped in a numbered group so its own numbering would
+               ;; conflict, see `group-max' in `hl-prog-extra--precompute-regex'.
+               ((setq group-num (hl-prog-extra--regexp-group-number-first re))
+                (format "explicitly numbered group \"\\(?%d:\" isn't supported" group-num))))))
 
          ;; ---------------------------------
          ;; Check `re-subexpr', 2nd argument.

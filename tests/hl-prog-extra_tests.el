@@ -637,6 +637,57 @@ INLINE-STYLE resolves named faces to their attributes."
          (should (null (hl-prog-extra-html-face-list)))
          (should (equal "/* XX */" (hl-prog-extra-test-html))))))))
 
+(ert-deftest rule-invalid-numbered-group-is-skipped ()
+  "Check a rule whose regex numbers its own groups is skipped."
+  ;; Each item is wrapped in a numbered group, so an item numbering its own
+  ;; conflicts, which used to make the combined regex invalid. The error was
+  ;; raised while font locking, where nothing in that context highlighted.
+  (let ((hl-prog-extra-list
+         (list
+          (list "\\(?1:XX\\)" 0 'comment 'hl-prog-extra-test-a)
+          (list "\\<YY\\>" 0 'comment 'hl-prog-extra-test-b)))
+        (text-initial "/* XX YY */"))
+    (with-hl-prog-extra-test text-initial #'c-mode
+      (should
+       (equal
+        "/* XX <span class='hl-prog-extra-test-b'>YY</span>\n */" (hl-prog-extra-test-html))))))
+
+(ert-deftest rule-invalid-numbered-group-reason ()
+  "Check the reason reported for a numbered group names it."
+  ;; Any number is rejected, not only those that collide with the item's own.
+  (dolist (re (list "\\(?1:XX\\)" "\\(?9:XX\\)" "X\\(?12:X\\)"))
+    (ert-info
+     ((format "regex %S" re))
+     (let ((error-msg
+            (hl-prog-extra--validate-keyword-item (list re 0 'comment 'hl-prog-extra-test-a))))
+       (should (stringp error-msg))
+       (should (string-match-p "explicitly numbered group" error-msg))))))
+
+(ert-deftest rule-valid-group-not-numbered ()
+  "Check regexes which only look like a numbered group are accepted."
+  (dolist (re
+           (list
+            ;; A shy group, which takes no number.
+            "\\(?:XX\\)"
+            ;; The characters of a bracket expression, not a group.
+            "[\\(?1:]+"
+            ;; An escaped back-slash, the parenthesis that follows is a literal.
+            "X\\\\(?1:"))
+    (ert-info
+     ((format "regex %S" re))
+     (should
+      (null (hl-prog-extra--validate-keyword-item (list re 0 'comment 'hl-prog-extra-test-a)))))))
+
+(ert-deftest rule-validate-keeps-match-data ()
+  "Check validating a rule leaves the caller's match data alone."
+  ;; Validation runs when the mode is enabled, which may happen from a hook
+  ;; while the code that ran the search is still using its match data.
+  (should (eq 0 (string-match "\\(foo\\)bar" "foobar")))
+  (should
+   (stringp
+    (hl-prog-extra--validate-keyword-item (list "\\(?1:XX\\)" 0 'comment 'hl-prog-extra-test-a))))
+  (should (equal "foo" (match-string 1 "foobar"))))
+
 (ert-deftest rule-invalid-is-skipped ()
   "Check an invalid rule is skipped without discarding the valid rules."
   (let ((hl-prog-extra-list
