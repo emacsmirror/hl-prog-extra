@@ -184,11 +184,7 @@ it should return non-nil to exclude this buffer from Global `hl-prog-extra' Mode
 (defun hl-prog-extra--match-index-set (beg end index)
   "Set the match data from BEG to END at INDEX."
   (declare (important-return-value nil))
-  (let ((gen-match (list beg end)))
-    (dotimes (_ index)
-      (setq gen-match (cons nil (cons nil gen-match))))
-    (setq gen-match (cons beg (cons end gen-match)))
-    (set-match-data gen-match)))
+  (set-match-data (append (list beg end) (make-list (* 2 index) nil) (list beg end))))
 
 (defun hl-prog-extra--regexp-valid-or-error (re)
   "Return nil if RE is a valid regexp, otherwise the error string."
@@ -392,11 +388,13 @@ it should return non-nil to exclude this buffer from Global `hl-prog-extra' Mode
   ;; (list
   ;;   (list
   ;;     'hl-prog-extra--match
-  ;;     (cons 2 (list 'font-lock-string-face t t))
-  ;;     (cons 1 (list 'font-lock-warning-face t t))
-  ;;     (cons 0 (list 'font-lock-constant-face t t))))
+  ;;     (cons 1 (list 'font-lock-constant-face t t))
+  ;;     (cons 2 (list 'font-lock-warning-face t t))
+  ;;     (cons 3 (list 'font-lock-string-face t t))))
   ;;
-  ;; Counting down is important so the first matching group that is met is used.
+  ;; There is a group for each face, `hl-prog-extra--match' sets the match data so only the
+  ;; group of the matched face is set. Font lock applies every highlight it's given,
+  ;; so the order of the groups isn't meaningful.
   (let ((keywords (list)))
     (dotimes (i (length face-vector))
       (let ((face (aref face-vector i)))
@@ -556,6 +554,8 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
 
             ;; Reserve the group numbers Emacs assigns to the groups this item's regex
             ;; declares, they follow on from the highest number used so far.
+            ;; NOTE: `regexp-opt-depth' doesn't count explicitly numbered groups, so a regex
+            ;; which numbers its own groups isn't supported, the numbers wouldn't line up.
             (setq group-max (max group-max (1+ uniq-index)))
             (incf group-max (regexp-opt-depth re))
 
