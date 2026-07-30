@@ -514,14 +514,17 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
                   ;; existing entry. An earlier item may already define the same
                   ;; (face . sub-expr) pair, skipping it here silently drops the group.
                   (when is-multi
-                    (push uniq-index uniq-index-multi)))))
+                    (push (cons re-sub uniq-index) uniq-index-multi)))))
 
             (when is-multi
-              (setq uniq-index-multi (sort uniq-index-multi #'>))
+              ;; Order by sub-expression, descending. The match steps through the vector in
+              ;; reverse, giving ascending sub-expressions which the match stack requires
+              ;; since it steps forward through the buffer.
+              (setq uniq-index-multi (sort uniq-index-multi (lambda (a b) (> (car a) (car b)))))
               ;; Unlike a single sub-expression, this is never shared with another item
               ;; since its group must be followed by the groups this item's regex declares.
               (setq uniq-index uniq-list-len)
-              (push (vconcat uniq-index-multi) uniq-list)
+              (push (vconcat (mapcar #'cdr uniq-index-multi)) uniq-list)
               (incf uniq-list-len))
 
             ;; Reserve the group numbers Emacs assigns to the groups this item's regex

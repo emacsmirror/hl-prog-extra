@@ -29,6 +29,9 @@
 (defface hl-prog-extra-test-b '((t :foreground "#00FF00"))
   "Face for testing."
   :group 'hl-prog-extra)
+(defface hl-prog-extra-test-c '((t :foreground "#0000FF"))
+  "Face for testing."
+  :group 'hl-prog-extra)
 
 ;; Faces for checking how specs are resolved, defined here rather than using the
 ;; faces of a major-mode, whose definitions change between Emacs versions.
@@ -363,6 +366,71 @@ INLINE-STYLE resolves named faces to their attributes."
           "=<span class='hl-prog-extra-test-b'>value</span>\n */")))
     (with-hl-prog-extra-test text-initial #'c-mode
       (should (equal text-expected (hl-prog-extra-test-html))))))
+
+;; NOTE: the sub-expressions of a single match are returned one at a time from a
+;; stack which steps forward through the buffer, so they must be ordered by group
+;; and not by the order they happen to be listed in.
+
+(ert-deftest subexpr-multiple-out-of-order ()
+  "Check sub-expressions listed in descending order are all highlighted."
+  (let ((hl-prog-extra-list
+         (list
+          (list
+           "\\([a-z]+\\)=\\([a-z]+\\)"
+           (list 2 1)
+           'comment
+           (list 'hl-prog-extra-test-b 'hl-prog-extra-test-a))))
+        (text-initial "/* key=value */")
+        ;; The same result as listing the sub-expressions in ascending order,
+        ;; the order they are given in doesn't change what is highlighted.
+        (text-expected
+         (concat
+          "/* <span class='hl-prog-extra-test-a'>key</span>\n" ;
+          "=<span class='hl-prog-extra-test-b'>value</span>\n */")))
+    (with-hl-prog-extra-test text-initial #'c-mode
+      (should (equal text-expected (hl-prog-extra-test-html))))))
+
+(ert-deftest subexpr-multiple-out-of-order-shuffled ()
+  "Check sub-expressions listed in an arbitrary order are all highlighted."
+  ;; Unlike a descending list, neither this order nor its reverse is sorted,
+  ;; so handling that only reverses the list would still fail here.
+  (let ((hl-prog-extra-list
+         (list
+          (list
+           "\\([a-z]+\\)=\\([a-z]+\\):\\([a-z]+\\)"
+           (list 3 1 2)
+           'comment
+           (list 'hl-prog-extra-test-c 'hl-prog-extra-test-a 'hl-prog-extra-test-b))))
+        (text-initial "/* key=value:extra */")
+        (text-expected
+         (concat
+          "/* <span class='hl-prog-extra-test-a'>key</span>\n" ;
+          "=<span class='hl-prog-extra-test-b'>value</span>\n" ;
+          ":<span class='hl-prog-extra-test-c'>extra</span>\n */")))
+    (with-hl-prog-extra-test text-initial #'c-mode
+      (should (equal text-expected (hl-prog-extra-test-html))))))
+
+(ert-deftest subexpr-multiple-order ()
+  "Check sub-expressions are returned ordered by group, not as they are listed."
+  ;; Either order highlights the same text, so step the matcher by hand to check
+  ;; the order it reports them in, which nothing else here depends on.
+  (let ((hl-prog-extra-list
+         (list
+          (list
+           "\\([a-z]+\\)=\\([a-z]+\\)"
+           (list 2 1)
+           'comment
+           (list 'hl-prog-extra-test-b 'hl-prog-extra-test-a))))
+        (text-initial "/* key=value */"))
+    (with-hl-prog-extra-test text-initial #'c-mode
+      (let ((match-list (list)))
+        (goto-char (point-min))
+        (while (hl-prog-extra--match (point-max))
+          (push (match-string-no-properties 0) match-list)
+          ;; Step over a match that didn't move the point, as font lock does.
+          (unless (< (match-beginning 0) (point))
+            (forward-char 1)))
+        (should (equal (list "key" "value") (nreverse match-list)))))))
 
 ;; NOTE: each item is wrapped in a numbered regex group and its sub-expression is
 ;; looked up relative to that group, so an item's number must be above every
