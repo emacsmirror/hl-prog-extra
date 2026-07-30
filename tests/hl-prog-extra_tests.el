@@ -364,6 +364,62 @@ INLINE-STYLE resolves named faces to their attributes."
     (with-hl-prog-extra-test text-initial #'c-mode
       (should (equal text-expected (hl-prog-extra-test-html))))))
 
+;; NOTE: each item is wrapped in a numbered regex group and its sub-expression is
+;; looked up relative to that group, so an item's number must be above every
+;; number used before it. These check the cases where that used to break down,
+;; the whole match was highlighted instead of the sub-expression.
+
+(ert-deftest subexpr-group-face-reused ()
+  "Check items sharing a face and sub-expression keep their own groups."
+  (let ((hl-prog-extra-list
+         (list
+          (list "<\\([a-z]+\\)>" 1 'comment 'hl-prog-extra-test-a)
+          (list "{\\([a-z]+\\)}" 1 'comment 'hl-prog-extra-test-a)))
+        (text-initial "/* <one> {two} */")
+        (text-expected
+         (concat
+          "/* &lt;<span class='hl-prog-extra-test-a'>one</span>\n" ;
+          "&gt; {<span class='hl-prog-extra-test-a'>two</span>\n} */")))
+    (with-hl-prog-extra-test text-initial #'c-mode
+      (should (equal text-expected (hl-prog-extra-test-html))))))
+
+(ert-deftest subexpr-group-after-item-with-groups ()
+  "Check an item's own groups don't shift the sub-expression of a later item."
+  ;; The first item declares two groups of its own, which take the numbers
+  ;; following it, the second item must be numbered above them.
+  (let ((hl-prog-extra-list
+         (list
+          (list "(\\([a-z]+\\))\\(!\\)" 1 'comment 'hl-prog-extra-test-a)
+          (list "\\[\\([a-z]+\\)\\]" 1 'comment 'hl-prog-extra-test-b)))
+        (text-initial "/* (one)! [two] */")
+        (text-expected
+         (concat
+          "/* (<span class='hl-prog-extra-test-a'>one</span>\n" ;
+          ")! [<span class='hl-prog-extra-test-b'>two</span>\n] */")))
+    (with-hl-prog-extra-test text-initial #'c-mode
+      (should (equal text-expected (hl-prog-extra-test-html))))))
+
+(ert-deftest subexpr-group-after-item-multiple ()
+  "Check an item with multiple sub-expressions doesn't shift a later item."
+  ;; An item with multiple sub-expressions takes an entry for each of them as
+  ;; well as its own, so its group number is further ahead than it appears.
+  (let ((hl-prog-extra-list
+         (list
+          (list
+           "@\\([a-z]+\\)=\\([a-z]+\\)"
+           (list 1 2)
+           'comment
+           (list 'hl-prog-extra-test-a 'hl-prog-extra-test-b))
+          (list "\\[\\([a-z]+\\)\\]" 1 'comment 'hl-prog-extra-test-b)))
+        (text-initial "/* @one=two [three] */")
+        (text-expected
+         (concat
+          "/* @<span class='hl-prog-extra-test-a'>one</span>\n" ;
+          "=<span class='hl-prog-extra-test-b'>two</span>\n" ;
+          " [<span class='hl-prog-extra-test-b'>three</span>\n] */")))
+    (with-hl-prog-extra-test text-initial #'c-mode
+      (should (equal text-expected (hl-prog-extra-test-html))))))
+
 
 (ert-deftest context-comment-start-is-not-matched ()
   "Check the documented gap at the start of a comment."

@@ -395,7 +395,8 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
 `face-vector':
   A vector of unique faces.
 `uniq-vector':
-  A vector of unique data for each regex group.
+  A vector of unique data for each regex group, nil for group numbers
+  which no item uses (taken by the groups an item's own regex declares).
 `is-complex-comment':
   Non-nil when comment-only and comment-doc differ.
 `is-complex-string':
@@ -420,11 +421,22 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
           ;; Unique faces, used to build the arguments for font locking.
           (face-list (list))
           (face-list-contents (make-hash-table :test 'eq :size len))
-          ;; Unique values aligned with the regex groups.
-          ;; Each element may be a list if other kinds of data need to be referenced.
+          ;; Unique values aligned with the regex groups, each element is either
+          ;; a (sub-expr . face-index) cons, a vector of indices into this list
+          ;; (for items with multiple sub-expressions), or nil for an unused group.
           (uniq-list (list))
-          ;; Use `equal' so vectors can be used as keys.
-          (uniq-list-contents (make-hash-table :test 'equal :size len)))
+          (uniq-list-len 0)
+          ;; Use `equal' so faces defined as property lists can be used as keys.
+          (uniq-list-contents (make-hash-table :test 'equal :size len))
+
+          ;; The highest regex group number used by any item so far.
+          ;;
+          ;; Each item is wrapped in an explicitly numbered group, any groups the item's own
+          ;; regex declares then take the numbers directly following it. Sub-expressions are
+          ;; looked up relative to the item's group, so an item's group number must always be
+          ;; higher than every group number used before it, otherwise the numbers Emacs assigns
+          ;; to the item's own groups don't line up and unrelated groups are highlighted.
+          (group-max 0))
 
       (pcase-dolist (`(,re ,re-subexpr ,context ,face) syn-regex-list)
 
@@ -457,6 +469,13 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
               (setq re-subexpr (list re-subexpr))
               (setq face (list face))))
 
+            ;; Skip indices whose group numbers are used by earlier items, see `group-max'.
+            ;; Do this before any entry is added so the group this item takes is always
+            ;; above them, entries added afterwards fill the gap.
+            (while (< uniq-list-len group-max)
+              (push nil uniq-list)
+              (incf uniq-list-len))
+
             (while re-subexpr
               (let ((re-sub (pop re-subexpr))
                     (face-sub (pop face)))
@@ -473,23 +492,42 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
                     (puthash key face-index face-list-contents)))
 
                 (let ((key (cons face-sub re-sub)))
-                  (setq uniq-index (gethash key uniq-list-contents))
-                  (unless uniq-index
-                    (setq uniq-index (hash-table-count uniq-list-contents))
-                    (when is-multi
-                      (push uniq-index uniq-index-multi))
+                  (setq uniq-index
+                        (cond
+                         ;; An existing entry shares its group with an earlier item's regex,
+                         ;; which is only correct when the whole match is used, as a shared
+                         ;; group isn't followed by this item's own groups.
+                         ;; Sub-expressions of a multi item are referenced by index and never
+                         ;; used as a group, so they can always be shared.
+                         ((or is-multi (zerop re-sub))
+                          (gethash key uniq-list-contents))
+                         (t
+                          nil)))
 
+                  (unless uniq-index
+                    (setq uniq-index uniq-list-len)
                     (push (cons re-sub face-index) uniq-list)
-                    (puthash key uniq-index uniq-list-contents)))))
+                    (incf uniq-list-len)
+                    (puthash key uniq-index uniq-list-contents))
+
+                  ;; NOTE: accumulate every sub-expression, including those that reuse an
+                  ;; existing entry. An earlier item may already define the same
+                  ;; (face . sub-expr) pair, skipping it here silently drops the group.
+                  (when is-multi
+                    (push uniq-index uniq-index-multi)))))
 
             (when is-multi
               (setq uniq-index-multi (sort uniq-index-multi #'>))
-              (let ((key uniq-index-multi))
-                (setq uniq-index (gethash key uniq-list-contents))
-                (unless uniq-index
-                  (setq uniq-index (hash-table-count uniq-list-contents))
-                  (push (vconcat uniq-index-multi) uniq-list)
-                  (puthash key uniq-index uniq-list-contents))))
+              ;; Unlike a single sub-expression, this is never shared with another item
+              ;; since its group must be followed by the groups this item's regex declares.
+              (setq uniq-index uniq-list-len)
+              (push (vconcat uniq-index-multi) uniq-list)
+              (incf uniq-list-len))
+
+            ;; Reserve the group numbers Emacs assigns to the groups this item's regex
+            ;; declares, they follow on from the highest number used so far.
+            (setq group-max (max group-max (1+ uniq-index)))
+            (incf group-max (regexp-opt-depth re))
 
             ;; Group the regex into a larger numbered regex using \\(?NUM:...).
             ;; These expressions are then joined to make a single regex
