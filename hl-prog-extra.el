@@ -729,7 +729,7 @@ BOUND is only used to validate the state."
                 (cons (point) bound))
                (t
                 ;; Go to the end since there is no further data to parse.
-                (goto-char (min beg bound))
+                (goto-char (min end bound))
                 nil)))
         ;; Found.
         t))
