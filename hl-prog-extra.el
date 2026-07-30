@@ -434,7 +434,8 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
 `face-vector':
   A vector of unique faces.
 `uniq-vector':
-  A vector of unique data for each regex group, nil for group numbers
+  A vector aligned with the regex groups, each element is a list of
+  (sub-expr . face-index) ordered by sub-expr, nil for group numbers
   which no item uses (taken by the groups an item's own regex declares).
 `is-complex-comment':
   Non-nil when comment-only and comment-doc differ.
@@ -460,12 +461,12 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
           ;; Unique faces, used to build the arguments for font locking.
           (face-list (list))
           (face-list-contents (make-hash-table :test 'eq :size len))
-          ;; Unique values aligned with the regex groups, each element is either
-          ;; a (sub-expr . face-index) cons, a vector of indices into this list
-          ;; (for items with multiple sub-expressions), or nil for an unused group.
+          ;; Unique values aligned with the regex groups, each element is a list of
+          ;; (sub-expr . face-index) for the item using that group, nil for an unused group.
           (uniq-list (list))
           (uniq-list-len 0)
-          ;; Use `equal' so faces defined as property lists can be used as keys.
+          ;; Use `equal' since the keys are lists of (sub-expr . face-index) pairs.
+          ;; Faces are keyed by `face-list-contents', which resolves them to an index first.
           (uniq-list-contents (make-hash-table :test 'equal :size len))
 
           ;; The highest regex group number used by any item so far.
@@ -488,9 +489,8 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
                ;; Be strict here since any errors in font-locking are difficult for users to debug.
                (hl-prog-extra--validate-keyword-item (list re re-subexpr context face)))
 
-              ;; Handle cases with multiple sub-expressions.
-              (is-multi nil)
-              (uniq-index-multi nil)
+              ;; Each sub-expression and the face to use for it.
+              (sub-face-list nil)
 
               (uniq-index nil)
               (face-index nil))
@@ -500,13 +500,10 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
             (message "%s: %s (item %d)" item-error-prefix error-msg item-index))
            (t ; No error.
 
-            (cond
-             ((and re-subexpr (listp re-subexpr))
-              (when (<= 1 (length re-subexpr))
-                (setq is-multi t)))
-             (t ; Move into a list to avoid duplicate code-paths.
+            (unless (listp re-subexpr)
+              ;; Move into a list to avoid duplicate code-paths.
               (setq re-subexpr (list re-subexpr))
-              (setq face (list face))))
+              (setq face (list face)))
 
             ;; Skip indices whose group numbers are used by earlier items, see `group-max'.
             ;; Do this before any entry is added so the group this item takes is always
@@ -530,41 +527,32 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
                     (push face-sub face-list)
                     (puthash key face-index face-list-contents)))
 
-                (let ((key (cons face-sub re-sub)))
-                  (setq uniq-index
-                        (cond
-                         ;; An existing entry shares its group with an earlier item's regex,
-                         ;; which is only correct when the whole match is used, as a shared
-                         ;; group isn't followed by this item's own groups.
-                         ;; Sub-expressions of a multi item are referenced by index and never
-                         ;; used as a group, so they can always be shared.
-                         ((or is-multi (zerop re-sub))
-                          (gethash key uniq-list-contents))
-                         (t
-                          nil)))
+                (push (cons re-sub face-index) sub-face-list)))
 
-                  (unless uniq-index
-                    (setq uniq-index uniq-list-len)
-                    (push (cons re-sub face-index) uniq-list)
-                    (incf uniq-list-len)
-                    (puthash key uniq-index uniq-list-contents))
+            ;; Order by sub-expression, which is the order in the buffer since groups are
+            ;; numbered from left to right. The match stack relies on this as it steps forward.
+            ;;
+            ;; NOTE: not `car-less-than-car', only `sort.el' defines it (without an autoload),
+            ;; which Emacs 30 pre-dumps, masking the missing `require' on older releases.
+            (setq sub-face-list (sort (nreverse sub-face-list) (lambda (a b) (< (car a) (car b)))))
 
-                  ;; NOTE: accumulate every sub-expression, including those that reuse an
-                  ;; existing entry. An earlier item may already define the same
-                  ;; (face . sub-expr) pair, skipping it here silently drops the group.
-                  (when is-multi
-                    (push (cons re-sub uniq-index) uniq-index-multi)))))
+            ;; A sub-expression repeated with the same face highlights one region twice,
+            ;; where the duplicate only takes a slot in the match stack.
+            (setq sub-face-list (delete-dups sub-face-list))
 
-            (when is-multi
-              ;; Order by sub-expression, descending. The match steps through the vector in
-              ;; reverse, giving ascending sub-expressions which the match stack requires
-              ;; since it steps forward through the buffer.
-              (setq uniq-index-multi (sort uniq-index-multi (lambda (a b) (> (car a) (car b)))))
-              ;; Unlike a single sub-expression, this is never shared with another item
-              ;; since its group must be followed by the groups this item's regex declares.
-              (setq uniq-index uniq-list-len)
-              (push (vconcat (mapcar #'cdr uniq-index-multi)) uniq-list)
-              (incf uniq-list-len))
+            ;; The group may only be shared with an earlier item when the whole match is used,
+            ;; since a shared group isn't followed by this item's own groups.
+            (let ((uniq-is-shared
+                   (and (null (cdr sub-face-list)) (zerop (car (car sub-face-list))))))
+              (when uniq-is-shared
+                (setq uniq-index (gethash sub-face-list uniq-list-contents)))
+
+              (unless uniq-index
+                (setq uniq-index uniq-list-len)
+                (push sub-face-list uniq-list)
+                (incf uniq-list-len)
+                (when uniq-is-shared
+                  (puthash sub-face-list uniq-index uniq-list-contents))))
 
             ;; Reserve the group numbers Emacs assigns to the groups this item's regex
             ;; declares, they follow on from the highest number used so far.
@@ -714,64 +702,51 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
                 (setq found t)
                 ;; The `uniq-index' is always needed to find the original font
                 ;; and to check for a sub-expression.
+                ;;
+                ;; NOTE: request integers so a marker isn't created for every group in the
+                ;; combined regex. This appends the buffer to the list, which is never reached
+                ;; since the group wrapping this item always matches.
                 (pcase-let* ((`(,match-tail . ,uniq-index)
-                              (hl-prog-extra--match-first (match-data)))
-                             (`(,beg-final ,end-final) match-tail))
+                              (hl-prog-extra--match-first (match-data t)))
+                             (`(,beg-final ,end-final) match-tail)
+                             (uniq-data (aref uniq-array uniq-index))
+                             (beg-end-index-list (list)))
 
-                  (let ((uniq-data (aref uniq-array uniq-index)))
+                  ;; Extract the region of each sub-expression, skipping those that didn't
+                  ;; match (they may be optional or out of range).
+                  (pcase-dolist (`(,sub-expr . ,face-index) uniq-data)
+                    (pcase-let ((`(,beg ,end) (nthcdr (* 2 sub-expr) match-tail)))
+                      (when (and beg end)
+                        (push (list beg end face-index) beg-end-index-list))))
+                  (setq beg-end-index-list (nreverse beg-end-index-list))
+
+                  (cond
+                   ;; Nothing to highlight.
+                   ((null beg-end-index-list)
                     (cond
-                     ;; This is really an indirection (vector of unique indices).
-                     ;; `uniq-data' is a vector of indices into `uniq-array'.
-                     ((vectorp uniq-data)
-                      (let ((beg-end-index-list (list)))
-                        (dotimes (i (length uniq-data))
-                          (let ((uniq-data-sub (aref uniq-array (aref uniq-data i))))
-                            (pcase-let ((`(,sub-expr . ,face-index) uniq-data-sub))
-                              (pcase-let ((`(,beg ,end) (nthcdr (* 2 sub-expr) match-tail)))
-                                (when (and beg end)
-                                  (push (list
-                                         (marker-position beg) (marker-position end) face-index)
-                                        beg-end-index-list))))))
-
-                        (cond
-                         ;; Empty, do nothing.
-                         ((null beg-end-index-list)
-                          nil)
-
-                         ;; A single item, use simple handling (nothing clever).
-                         ;; This can happen when a multi-item has optional matches,
-                         ;; and only one is found.
-                         ((null (cdr beg-end-index-list))
-                          (pcase-let ((`(,beg ,end ,face-index) (car beg-end-index-list)))
-                            (hl-prog-extra--match-index-set beg end face-index)))
-
-                         ;; Multi-item match, handle the first, store the rest
-                         ;; in the stack to be returned before further searching.
-                         (t
-                          (setq hl-prog-extra--data-match-stack beg-end-index-list)
-                          (hl-prog-extra--match-impl-precalc bound)
-                          ;; Don't step into the next context, allow for the remaining
-                          ;; items in the stack to be handled first.
-                          (setq bound-context-clamp nil)))))
-
+                     ;; A single sub-expression falls back to the whole match, since the
+                     ;; sub-expression may be out of range and raising an error during
+                     ;; font-locking isn't practical.
+                     ((and uniq-data (null (cdr uniq-data)))
+                      (hl-prog-extra--match-index-set beg-final end-final (cdr (car uniq-data))))
                      (t
-                      ;; When sub-expressions are used, they need to be extracted.
-                      (when uniq-data
-                        (pcase-let ((`(,sub-expr . ,face-index) uniq-data))
-                          (when sub-expr
-                            (pcase-let ((`(,beg ,end) (nthcdr (* 2 sub-expr) match-tail)))
-                              ;; The configuration may have an out of range `sub-expr',
-                              ;; just ignore this and use the whole expression, since raising
-                              ;; an error during font-locking in this case isn't practical.
-                              (when (and beg end)
-                                (setq beg-final beg)
-                                (setq end-final end))))
+                      ;; Clear the groups so the match data left by the search isn't used,
+                      ;; as its groups don't correspond to the faces of this item.
+                      (set-match-data (list beg-final end-final)))))
 
-                          ;; Remap the absolute table to the unique face.
-                          (hl-prog-extra--match-index-set
-                           (marker-position beg-final)
-                           (marker-position end-final)
-                           face-index)))))))
+                   ;; A single region, use simple handling (nothing clever).
+                   ((null (cdr beg-end-index-list))
+                    (pcase-let ((`(,beg ,end ,face-index) (car beg-end-index-list)))
+                      (hl-prog-extra--match-index-set beg end face-index)))
+
+                   ;; Multiple regions, handle the first, store the rest
+                   ;; in the stack to be returned before further searching.
+                   (t
+                    (setq hl-prog-extra--data-match-stack beg-end-index-list)
+                    (hl-prog-extra--match-impl-precalc bound)
+                    ;; Don't step into the next context, allow for the remaining
+                    ;; items in the stack to be handled first.
+                    (setq bound-context-clamp nil))))
 
                 (when bound-context-clamp
                   ;; If the clamped bounds are met, step to the unclamped bounds.

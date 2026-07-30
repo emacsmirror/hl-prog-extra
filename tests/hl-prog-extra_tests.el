@@ -432,6 +432,39 @@ INLINE-STYLE resolves named faces to their attributes."
             (forward-char 1)))
         (should (equal (list "key" "value") (nreverse match-list)))))))
 
+(ert-deftest subexpr-multiple-optional-none-match ()
+  "Check a match none of whose sub-expressions were found is left alone."
+  ;; NOTE: a third face is needed to see this. The group the search left set was
+  ;; used as a face index, which only names a face once the table has enough
+  ;; entries, so the last item's face was applied to the whole match.
+  (let ((hl-prog-extra-list
+         (list
+          (list
+           "X\\(a\\)?\\(b\\)?"
+           (list 1 2)
+           'comment
+           (list 'hl-prog-extra-test-a 'hl-prog-extra-test-b))
+          (list "\\<ZZ\\>" 0 'comment 'hl-prog-extra-test-c)))
+        (text-initial "/* X ZZ */")
+        ;; Neither optional group matched, so the first item highlights nothing.
+        (text-expected "/* X <span class='hl-prog-extra-test-c'>ZZ</span>\n */"))
+    (with-hl-prog-extra-test text-initial #'c-mode
+      (should (equal text-expected (hl-prog-extra-test-html))))))
+
+(ert-deftest subexpr-duplicate-is-merged ()
+  "Check a sub-expression repeated with the same face is only stored once."
+  ;; The duplicate highlights one region twice and takes a slot in the match
+  ;; stack, which relies on each of its entries stepping forward in the buffer.
+  (pcase-let ((`(,_re-list ,_face-vector ,uniq-vector ,_ ,_)
+               (hl-prog-extra--precompute-regex
+                (list
+                 (list
+                  "\\(a\\)b" (list 1 1) 'comment
+                  (list 'hl-prog-extra-test-a 'hl-prog-extra-test-a))))))
+    ;; Only one entry is materialized for the item; the separate group counter
+    ;; reserves the group its own regex declares.
+    (should (equal (vector (list (cons 1 0))) uniq-vector))))
+
 ;; NOTE: each item is wrapped in a numbered regex group and its sub-expression is
 ;; looked up relative to that group, so an item's number must be above every
 ;; number used before it. These check the cases where that used to break down,
@@ -469,22 +502,25 @@ INLINE-STYLE resolves named faces to their attributes."
 
 (ert-deftest subexpr-group-after-item-multiple ()
   "Check an item with multiple sub-expressions doesn't shift a later item."
-  ;; An item with multiple sub-expressions takes an entry for each of them as
-  ;; well as its own, so its group number is further ahead than it appears.
+  ;; However many sub-expressions an item uses, they share one entry, what is
+  ;; reserved after it is one entry for each group the item's own regex declares.
+  ;; This regex declares more groups than the item lists sub-expressions, so a
+  ;; count of either one alone would leave a gap the second item can't be read
+  ;; across.
   (let ((hl-prog-extra-list
          (list
           (list
-           "@\\([a-z]+\\)=\\([a-z]+\\)"
+           "@\\([a-z]+\\)=\\([a-z]+\\)\\(!\\)\\(;\\)"
            (list 1 2)
            'comment
            (list 'hl-prog-extra-test-a 'hl-prog-extra-test-b))
           (list "\\[\\([a-z]+\\)\\]" 1 'comment 'hl-prog-extra-test-b)))
-        (text-initial "/* @one=two [three] */")
+        (text-initial "/* @one=two!; [three] */")
         (text-expected
          (concat
           "/* @<span class='hl-prog-extra-test-a'>one</span>\n" ;
           "=<span class='hl-prog-extra-test-b'>two</span>\n" ;
-          " [<span class='hl-prog-extra-test-b'>three</span>\n] */")))
+          "!; [<span class='hl-prog-extra-test-b'>three</span>\n] */")))
     (with-hl-prog-extra-test text-initial #'c-mode
       (should (equal text-expected (hl-prog-extra-test-html))))))
 
