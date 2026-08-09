@@ -813,7 +813,10 @@ see each preset's documentation for available keywords."
          (t
           (lwarn
            'hl-prog-extra
-           :error "preset %S loaded but did not define function `%S'" mode-value preset-sym)))))))
+           :error "preset %S loaded but did not define function `%S'" mode-value preset-sym)
+          ;; The caller appends this to `hl-prog-extra-list',
+          ;; returning the string from `lwarn' would create a malformed list.
+          nil))))))
 
 
 ;; ---------------------------------------------------------------------------
