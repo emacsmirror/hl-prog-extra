@@ -8,7 +8,7 @@
 ;; URL: https://codeberg.org/ideasman42/emacs-hl-prog-extra
 ;; Keywords: convenience
 ;; Version: 0.2
-;; Package-Requires: ((emacs "26.2"))
+;; Package-Requires: ((emacs "27.1"))
 
 ;;; Commentary:
 

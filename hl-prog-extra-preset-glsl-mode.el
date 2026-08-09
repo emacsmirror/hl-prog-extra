@@ -1,7 +1,7 @@
 ;;; hl-prog-extra-preset-glsl-mode.el --- GLSL preset -*- lexical-binding: t -*-
 ;; URL: https://codeberg.org/ideasman42/emacs-hl-prog-extra
 ;; Version: 0.1
-;; Package-Requires: ((emacs "26.2"))
+;; Package-Requires: ((emacs "27.1"))
 
 ;;; Commentary:
 ;; Preset for GLSL.
