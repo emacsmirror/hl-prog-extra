@@ -699,6 +699,31 @@ INLINE-STYLE resolves named faces to their attributes."
        (should (stringp error-msg))
        (should (string-match-p "explicitly numbered group" error-msg))))))
 
+(ert-deftest rule-invalid-back-reference-is-skipped ()
+  "Check a rule whose regex uses a back reference is skipped."
+  ;; The back reference is numbered as if the group wrapping this item were its
+  ;; own, which raised an invalid back reference while font locking, where
+  ;; nothing in that context highlighted.
+  (let ((hl-prog-extra-list
+         (list
+          (list "\\([a-z]\\)\\1" 0 'comment 'hl-prog-extra-test-a)
+          (list "\\<YY\\>" 0 'comment 'hl-prog-extra-test-b)))
+        (text-initial "/* xx YY */"))
+    (with-hl-prog-extra-test text-initial #'c-mode
+      (should
+       (equal
+        "/* xx <span class='hl-prog-extra-test-b'>YY</span>\n */" (hl-prog-extra-test-html))))))
+
+(ert-deftest rule-invalid-back-reference-reason ()
+  "Check the reason reported for a back reference names it."
+  (dolist (re (list "\\([a-z]\\)\\1" "\\(a\\)\\(b\\)X\\2"))
+    (ert-info
+     ((format "regex %S" re))
+     (let ((error-msg
+            (hl-prog-extra--validate-keyword-item (list re 0 'comment 'hl-prog-extra-test-a))))
+       (should (stringp error-msg))
+       (should (string-match-p "back reference" error-msg))))))
+
 (ert-deftest rule-valid-group-not-numbered ()
   "Check regexes which only look like a numbered group are accepted."
   (dolist (re
@@ -708,7 +733,11 @@ INLINE-STYLE resolves named faces to their attributes."
             ;; The characters of a bracket expression, not a group.
             "[\\(?1:]+"
             ;; An escaped back-slash, the parenthesis that follows is a literal.
-            "X\\\\(?1:"))
+            "X\\\\(?1:"
+            ;; The characters of a bracket expression, not a back reference.
+            "[\\1]+"
+            ;; An escaped back-slash, the digit that follows is a literal.
+            "X\\\\1"))
     (ert-info
      ((format "regex %S" re))
      (should

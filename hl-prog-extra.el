@@ -94,8 +94,8 @@
 `regex':
   The regular expression to match.
 
-  Every item is combined into a single regular expression which numbers the
-  groups, so the expression must not number its own (\"\\\\(?1:..\\\\)\").
+  The expression must not number its own groups (\"\\\\(?1:..\\\\)\") or refer
+  back to them (\"\\\\1\"), as combining items renumbers the groups, see below.
   Items which do are reported and skipped.
 `regex-subexpr':
   Group to use when highlighting the expression (zero for the whole match).
@@ -195,8 +195,10 @@ it should return non-nil to exclude this buffer from Global `hl-prog-extra' Mode
     (error
      (error-message-string err))))
 
-(defun hl-prog-extra--regexp-group-number-first (re)
-  "Return the number of the first explicitly numbered group in RE, otherwise nil."
+(defun hl-prog-extra--regexp-number-first (re re-search)
+  "Return the number RE-SEARCH matches in RE, otherwise nil.
+RE-SEARCH must place the number in its first group.
+Matches which aren't part of the expression itself are skipped."
   (declare (important-return-value t))
   ;; NOTE: `save-match-data' since this runs when the mode is enabled,
   ;; where clobbering the caller's match data would be surprising.
@@ -204,7 +206,7 @@ it should return non-nil to exclude this buffer from Global `hl-prog-extra' Mode
   (save-match-data
     (let ((pos 0)
           (result nil))
-      (while (and (null result) (string-match "\\\\(\\?\\([0-9]+\\):" re pos))
+      (while (and (null result) (string-match re-search re pos))
         ;; NOTE: read the match before `subregexp-context-p' which overwrites the match data.
         (let ((beg (match-beginning 0))
               (group-num (string-to-number (match-string 1 re))))
@@ -261,8 +263,14 @@ it should return non-nil to exclude this buffer from Global `hl-prog-extra' Mode
 
                ;; Each item is wrapped in a numbered group so its own numbering would
                ;; conflict, see `group-max' in `hl-prog-extra--precompute-regex'.
-               ((setq group-num (hl-prog-extra--regexp-group-number-first re))
-                (format "explicitly numbered group \"\\(?%d:\" isn't supported" group-num))))))
+               ((setq group-num (hl-prog-extra--regexp-number-first re "\\\\(\\?\\([0-9]+\\):"))
+                (format "explicitly numbered group \"\\(?%d:\" isn't supported" group-num))
+
+               ;; A back reference is numbered the same way, so it refers to the group
+               ;; wrapping this item (which is still open, an invalid back reference)
+               ;; or to a group of an unrelated item, never the group the regex declares.
+               ((setq group-num (hl-prog-extra--regexp-number-first re "\\\\\\([1-9]\\)"))
+                (format "back reference \"\\%d\" isn't supported" group-num))))))
 
          ;; ---------------------------------
          ;; Check `re-subexpr', 2nd argument.
