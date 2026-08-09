@@ -334,7 +334,7 @@ Matches which aren't part of the expression itself are skipped."
 
          (validate-re-subexpr-list-fn
           (lambda (re-subexpr)
-            ;; `listp' ensured by caller.
+            ;; A proper list is ensured by the caller.
             (catch 'error
               (dolist (re-subexpr-sub re-subexpr)
                 (unless (integerp re-subexpr-sub)
@@ -349,7 +349,9 @@ Matches which aren't part of the expression itself are skipped."
             (cond
              ((integerp re-subexpr)
               (funcall validate-re-subexpr-single-fn re-subexpr))
-             ((and re-subexpr (listp re-subexpr))
+             ;; NOTE: `proper-list-p' since a dotted pair satisfies `listp',
+             ;; which would reach a `dolist' and raise instead of reporting.
+             ((and re-subexpr (proper-list-p re-subexpr))
               (funcall validate-re-subexpr-list-fn re-subexpr))
              (t
               (format "expected an integer or a list of integers, not a %S!"
@@ -372,7 +374,7 @@ Matches which aren't part of the expression itself are skipped."
 
          (validate-context-list-fn
           (lambda (context)
-            ;; `listp' ensured by caller.
+            ;; A proper list is ensured by the caller.
             (catch 'error
               (dolist (context-sub context)
                 (let ((error-msg (funcall validate-context-single-fn context-sub)))
@@ -384,7 +386,7 @@ Matches which aren't part of the expression itself are skipped."
             (cond
              ((null context) ; Do nothing (correct input).
               nil)
-             ((listp context)
+             ((proper-list-p context)
               (funcall validate-context-list-fn context))
              (t ; Expected to be a symbol.
               (funcall validate-context-single-fn context)))))
@@ -405,7 +407,7 @@ Matches which aren't part of the expression itself are skipped."
          (validate-face-list-fn
           (lambda (face re-subexpr)
             (catch 'error
-              (unless (and face (listp face))
+              (unless (and face (proper-list-p face))
                 (throw 'error (format "expected a list of faces, not %S" (type-of face))))
               (dolist (face-sub face)
                 (let ((error-msg (funcall validate-face-single-fn face-sub)))

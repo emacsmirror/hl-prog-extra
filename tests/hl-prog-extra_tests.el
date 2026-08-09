@@ -1013,6 +1013,23 @@ INLINE-STYLE resolves named faces to their attributes."
     (hl-prog-extra--validate-keyword-item (list "\\(?1:XX\\)" 0 'comment 'hl-prog-extra-test-a))))
   (should (equal "foo" (match-string 1 "foobar"))))
 
+(ert-deftest rule-invalid-dotted-list ()
+  "Check a dotted list is reported instead of raising an error."
+  ;; A dotted pair satisfies `listp', so it used to reach a `dolist' and raise.
+  ;; Validation runs when the mode is enabled, which the global mode does from a
+  ;; hook, where an error surfaces while opening a file.
+  (dolist (rule
+           (list
+            (list "\\<XX\\>" (cons 0 1) 'comment 'hl-prog-extra-test-a)
+            (list "\\<XX\\>" 0 (cons 'comment 'string) 'hl-prog-extra-test-a)
+            (list "\\<XX\\>" (list 0 1) 'comment (cons 'hl-prog-extra-test-a 'b))))
+    (ert-info
+     ((format "rule %S" rule)) (should (stringp (hl-prog-extra--validate-keyword-item rule)))
+     (let ((hl-prog-extra-list (list rule))
+           (text-initial "/* XX */"))
+       (with-hl-prog-extra-test text-initial #'c-mode
+         (should (equal "/* XX */" (hl-prog-extra-test-html))))))))
+
 (ert-deftest rule-invalid-is-skipped ()
   "Check an invalid rule is skipped without discarding the valid rules."
   (let ((hl-prog-extra-list
