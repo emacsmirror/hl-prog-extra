@@ -2,6 +2,9 @@
 # This Makefile is for convenience only; it is not needed for building the package.
 
 EMACS_BIN ?= emacs
+# Prefer "python3" since many distributions don't install a plain "python",
+# fall back for systems that only provide "python" (Windows for e.g.).
+PYTHON_BIN ?= $(if $(shell command -v python3),python3,python)
 
 .PHONY: all test view clean
 
@@ -13,13 +16,13 @@ all: test
 test:
 	EMACS_BIN="$(EMACS_BIN)" \
 	$(if $(HTML_DIR),HL_PROG_EXTRA_TEST_HTML_DIR="$(HTML_DIR)") \
-	python ./tests/hl-prog-extra_tests.py \
+	$(PYTHON_BIN) ./tests/hl-prog-extra_tests.py \
 		$(if $(SELECTOR),--selector "$(SELECTOR)")
 
 # Export FILE to HTML, to check the highlighting by eye.
 view:
 	@test -n "$(FILE)" || { echo "Usage: make view FILE=path/to/file"; exit 1; }
-	EMACS_BIN="$(EMACS_BIN)" python ./tests/hl-prog-extra_tests.py --view "$(FILE)"
+	EMACS_BIN="$(EMACS_BIN)" $(PYTHON_BIN) ./tests/hl-prog-extra_tests.py --view "$(FILE)"
 
 clean:
 	rm -f *.elc tests/*.elc
