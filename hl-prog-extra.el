@@ -397,7 +397,11 @@ Matches which aren't part of the expression itself are skipped."
          (validate-face-single-fn
           (lambda (face)
             (catch 'error
-              (unless (or (facep face) (listp face))
+              ;; NOTE: a nil face is rejected, font lock applies it over the match
+              ;; which clears the face the major mode set instead of doing nothing.
+              ;; A dotted pair is accepted, the legacy `(foreground-color . COLOR)'
+              ;; face takes that form.
+              (unless (or (facep face) (and face (listp face)))
                 (throw
                  'error
                  (format

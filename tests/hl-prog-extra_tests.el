@@ -1030,6 +1030,18 @@ INLINE-STYLE resolves named faces to their attributes."
        (with-hl-prog-extra-test text-initial #'c-mode
          (should (equal "/* XX */" (hl-prog-extra-test-html))))))))
 
+(ert-deftest rule-invalid-face-nil ()
+  "Check a nil face is reported instead of clearing the face on a match."
+  ;; Font lock applies a nil face over the match, which removes the face the
+  ;; major mode applied rather than doing nothing.
+  (let ((rule (list "\\<XX\\>" 0 'comment nil)))
+    (should (stringp (hl-prog-extra--validate-keyword-item rule)))
+    (let ((hl-prog-extra-list (list rule))
+          (text-initial "/* XX */"))
+      (with-hl-prog-extra-test text-initial #'c-mode
+        ;; The comment face is left as the major mode set it.
+        (should (eq 'font-lock-comment-face (get-text-property 5 'face)))))))
+
 (ert-deftest rule-invalid-is-skipped ()
   "Check an invalid rule is skipped without discarding the valid rules."
   (let ((hl-prog-extra-list
@@ -1041,6 +1053,49 @@ INLINE-STYLE resolves named faces to their attributes."
     (with-hl-prog-extra-test text-initial #'c-mode
       (should
        (equal "/* <span class='hl-prog-extra-test-a'>XX</span>\n */" (hl-prog-extra-test-html))))))
+
+(ert-deftest rule-custom-type-agrees-with-validation ()
+  "Check the customize type accepts the values validation does."
+  ;; Accepting a rule validation skips saves a rule that highlights nothing,
+  ;; with only a line in *Messages* as a clue. Rejecting a rule the mode
+  ;; supports shows a working configuration as a type mismatch.
+  (require 'wid-edit)
+  (require 'cus-edit)
+  (let ((custom-type (widget-convert (get 'hl-prog-extra-list 'custom-type))))
+    ;; Valid, every kind of face the mode supports.
+    (dolist (rule
+             (list
+              (list "\\<XX\\>" 0 'comment 'hl-prog-extra-test-a)
+              (list "\\<XX\\>" 0 'comment "hl-prog-extra-test-a")
+              (list "\\<XX\\>" 0 'comment '(:background "#000000" :foreground "#FFFFFF"))
+              ;; The legacy dotted pair face.
+              (list "\\<XX\\>" 0 'comment (cons 'foreground-color "red"))
+              ;; A list of contexts.
+              (list "\\<XX\\>" 0 (list 'comment 'string) 'hl-prog-extra-test-a)
+              ;; Sub-expressions with faces of different kinds.
+              (list
+               "\\([a-z]+\\)=\\([a-z]+\\)"
+               (list 1 2)
+               'comment
+               (list 'hl-prog-extra-test-a '(:background "#000000")))))
+      (ert-info
+       ((format "rule %S" rule))
+       (should (null (hl-prog-extra--validate-keyword-item rule)))
+       (should (widget-apply custom-type :match (list rule)))))
+
+    ;; Invalid, values the widgets used to accept.
+    (dolist (rule
+             (list
+              ;; An empty list of groups.
+              (list "\\(a\\)" nil 'comment 'hl-prog-extra-test-a)
+              ;; An empty list of faces.
+              (list "\\(a\\)" (list 1) 'comment nil)
+              ;; A nil face.
+              (list "\\<XX\\>" 0 'comment nil)))
+      (ert-info
+       ((format "rule %S" rule))
+       (should (stringp (hl-prog-extra--validate-keyword-item rule)))
+       (should-not (widget-apply custom-type :match (list rule)))))))
 
 
 ;; ---------------------------------------------------------------------------
