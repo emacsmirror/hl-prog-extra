@@ -461,9 +461,8 @@ INLINE-STYLE resolves named faces to their attributes."
                  (list
                   "\\(a\\)b" (list 1 1) 'comment
                   (list 'hl-prog-extra-test-a 'hl-prog-extra-test-a))))))
-    ;; Only one entry is materialized for the item; the separate group counter
-    ;; reserves the group its own regex declares.
-    (should (equal (vector (list (cons 1 0))) uniq-vector))))
+    ;; One entry for the item, followed by the group its own regex declares.
+    (should (equal (vector (list (cons 1 0)) nil) uniq-vector))))
 
 ;; NOTE: each item is wrapped in a numbered regex group and its sub-expression is
 ;; looked up relative to that group, so an item's number must be above every
@@ -521,6 +520,46 @@ INLINE-STYLE resolves named faces to their attributes."
           "/* @<span class='hl-prog-extra-test-a'>one</span>\n" ;
           "=<span class='hl-prog-extra-test-b'>two</span>\n" ;
           "!; [<span class='hl-prog-extra-test-b'>three</span>\n] */")))
+    (with-hl-prog-extra-test text-initial #'c-mode
+      (should (equal text-expected (hl-prog-extra-test-html))))))
+
+
+(ert-deftest subexpr-group-after-shared-items-with-groups ()
+  "Check items sharing a group don't shift the sub-expression of a later item."
+  ;; Both items use the whole match with one face so they share a group, while
+  ;; the groups their own regexes declare are padded for & never read. The
+  ;; third item's sub-expression is looked up relative to its own group, which
+  ;; must sit above all of them.
+  (let ((hl-prog-extra-list
+         (list
+          (list "<\\([a-z]+\\)>" 0 'comment 'hl-prog-extra-test-a)
+          (list "{\\([a-z]+\\)}" 0 'comment 'hl-prog-extra-test-a)
+          (list "\\[\\([a-z]+\\)\\]" 1 'comment 'hl-prog-extra-test-b)))
+        (text-initial "/* <one> {two} [three] */")
+        (text-expected
+         (concat
+          "/* <span class='hl-prog-extra-test-a'>&lt;one&gt;</span>\n" ;
+          " <span class='hl-prog-extra-test-a'>{two}</span>\n" ;
+          " [<span class='hl-prog-extra-test-b'>three</span>\n] */")))
+    (with-hl-prog-extra-test text-initial #'c-mode
+      (should (equal text-expected (hl-prog-extra-test-html))))))
+
+(ert-deftest subexpr-group-after-shared-items-across-contexts ()
+  "Check a shared item's own groups in one context don't shift another's."
+  ;; The combined regex is built per context, so a sharing item's declared
+  ;; groups take lower numbers in a context which holds fewer of the items,
+  ;; where the padded slots must still keep every later group above them.
+  (let ((hl-prog-extra-list
+         (list
+          (list "<\\([a-z]+\\)>" 0 'comment 'hl-prog-extra-test-a)
+          (list "<\\([a-z]+\\)>" 0 'string 'hl-prog-extra-test-a)
+          (list "\\[\\([a-z]+\\)\\]" 1 'string 'hl-prog-extra-test-b)))
+        (text-initial "/* <one> */ \"<two> [three]\"")
+        (text-expected
+         (concat
+          "/* <span class='hl-prog-extra-test-a'>&lt;one&gt;</span>\n" ;
+          " */ \"<span class='hl-prog-extra-test-a'>&lt;two&gt;</span>\n" ;
+          " [<span class='hl-prog-extra-test-b'>three</span>\n]\"")))
     (with-hl-prog-extra-test text-initial #'c-mode
       (should (equal text-expected (hl-prog-extra-test-html))))))
 
@@ -742,6 +781,21 @@ INLINE-STYLE resolves named faces to their attributes."
      ((format "regex %S" re))
      (should
       (null (hl-prog-extra--validate-keyword-item (list re 0 'comment 'hl-prog-extra-test-a)))))))
+
+(ert-deftest rule-group-shared-reserves-own-groups ()
+  "Check what items sharing a group reserve for the groups they declare."
+  ;; The shared group is claimed once while each item's own groups are still
+  ;; padded for. Sharing failing here doubles what such items take from the
+  ;; group limit, where a large list stops highlighting at half the groups
+  ;; Emacs numbers.
+  (let ((rule-list
+         (list
+          (list "<\\([a-z]+\\)>" 0 'comment 'hl-prog-extra-test-a)
+          (list "{\\([a-z]+\\)}" 0 'comment 'hl-prog-extra-test-a))))
+    (pcase-let ((`(,_re-list ,_face-vector ,uniq-vector ,_ ,_)
+                 (hl-prog-extra--precompute-regex rule-list)))
+      ;; One shared group, then one padded slot per item's declared group.
+      (should (eq 3 (length uniq-vector))))))
 
 (ert-deftest rule-validate-keeps-match-data ()
   "Check validating a rule leaves the caller's match data alone."
