@@ -184,21 +184,24 @@ so nothing can find which item matched.")
 ;; ---------------------------------------------------------------------------
 ;; Generic Utilities
 
-(defun hl-prog-extra--match-first (match)
-  "Return the first valid group from MATCH and its zero-based index."
+(defun hl-prog-extra--match-group-first (group-len)
+  "Return the first group the last search matched, in the range 1 to GROUP-LEN.
+Every alternative in the combined regex is wrapped in a numbered group,
+so a search that succeeds always sets a group in this range,
+callers index vectors aligned with the groups without a bounds check."
   (declare (important-return-value t))
-  ;; Skip the first two elements (group zero, which defines the entire match).
-  (setq match (cddr match))
-  (let ((i 0))
-    (while (and match (null (car match)))
-      (setq match (cddr match))
-      (incf i))
-    (cons match i)))
+  ;; NOTE: group zero is skipped since it defines the entire match.
+  (let ((group 1))
+    (while (and (<= group group-len) (null (match-beginning group)))
+      (incf group))
+    group))
 
 (defun hl-prog-extra--match-index-set (beg end index)
   "Set the match data from BEG to END at INDEX."
   (declare (important-return-value nil))
-  (set-match-data (append (list beg end) (make-list (* 2 index) nil) (list beg end))))
+  ;; NOTE: `nconc' instead of `append' since every argument is freshly allocated,
+  ;; `append' would copy all but the last of them.
+  (set-match-data (nconc (list beg end) (make-list (* 2 index) nil) (list beg end))))
 
 (defun hl-prog-extra--regexp-valid-or-error (re)
   "Return nil if RE is a valid regexp, otherwise the error string."
@@ -799,24 +802,26 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
               (cond
                ((re-search-forward re-context (or bound-context-clamp bound-context) t)
                 (setq found t)
-                ;; The `uniq-index' is always needed to find the original font
-                ;; and to check for a sub-expression.
+                ;; The group wrapping this item is always needed to find the original
+                ;; face and its sub-expressions, which are relative to it since an
+                ;; item's own groups directly follow the group wrapping it.
                 ;;
-                ;; NOTE: request integers so a marker isn't created for every group in the
-                ;; combined regex. This appends the buffer to the list, which is never reached
-                ;; since the group wrapping this item always matches.
-                (pcase-let* ((`(,match-tail . ,uniq-index)
-                              (hl-prog-extra--match-first (match-data t)))
-                             (`(,beg-final ,end-final) match-tail)
-                             (uniq-data (aref uniq-array uniq-index))
-                             (beg-end-index-list (list)))
+                ;; NOTE: read the groups directly. `match-data' allocates a list holding
+                ;; every group in the combined regex on each match, where all but this
+                ;; item's are nil since only one alternative can match.
+                (let* ((group (hl-prog-extra--match-group-first (length uniq-array)))
+                       (beg-final (match-beginning group))
+                       (end-final (match-end group))
+                       (uniq-data (aref uniq-array (1- group)))
+                       (beg-end-index-list (list)))
 
                   ;; Extract the region of each sub-expression,
                   ;; skipping any optional group that didn't match.
                   (pcase-dolist (`(,sub-expr . ,face-index) uniq-data)
-                    (pcase-let ((`(,beg ,end) (nthcdr (* 2 sub-expr) match-tail)))
-                      (when (and beg end)
-                        (push (list beg end face-index) beg-end-index-list))))
+                    (let* ((group-sub (+ group sub-expr))
+                           (beg (match-beginning group-sub)))
+                      (when beg
+                        (push (list beg (match-end group-sub) face-index) beg-end-index-list))))
                   (setq beg-end-index-list (nreverse beg-end-index-list))
 
                   (cond

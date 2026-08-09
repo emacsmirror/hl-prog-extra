@@ -779,7 +779,7 @@ INLINE-STYLE resolves named faces to their attributes."
   ;; Stepping past a sub-expression that begins just before the region bound is
   ;; forced to land exactly on it, ending the pass with items still stacked.
   ;; These used to be dropped since the region that follows searches with a
-  ;; bound of its own, silently loosing the highlight for this buffer position.
+  ;; bound of its own, silently losing the highlight for this buffer position.
   (let ((hl-prog-extra-list
          (list
           (list "\\(\\(\n\\)\\)" (list 1 2) nil (list 'hl-prog-extra-test-a 'hl-prog-extra-test-b))))
