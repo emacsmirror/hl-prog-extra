@@ -404,8 +404,9 @@ INLINE-STYLE resolves named faces to their attributes."
       (should (equal text-expected (hl-prog-extra-test-html))))))
 
 ;; NOTE: the sub-expressions of a single match are returned one at a time from a
-;; stack which steps forward through the buffer, so they must be ordered by group
-;; and not by the order they happen to be listed in.
+;; stack which steps forward through the buffer, so they are ordered by group and
+;; not by the order they happen to be listed in. Group order is only close to the
+;; order in the buffer, `subexpr-out-of-buffer-order' covers where it isn't.
 
 (ert-deftest subexpr-multiple-out-of-order ()
   "Check sub-expressions listed in descending order are all highlighted."
@@ -484,6 +485,76 @@ INLINE-STYLE resolves named faces to their attributes."
         (text-initial "/* X ZZ */")
         ;; Neither optional group matched, so the first item highlights nothing.
         (text-expected "/* X <span class='hl-prog-extra-test-c'>ZZ</span>\n */"))
+    (with-hl-prog-extra-test text-initial #'c-mode
+      (should (equal text-expected (hl-prog-extra-test-html))))))
+
+(ert-deftest subexpr-shared-beginning ()
+  "Check sub-expressions which begin at the same position are all highlighted."
+  ;; A group opening at the start of the match begins where the whole match does.
+  ;; The match stack used to stop at the point it was already on, which font lock
+  ;; reads as a match of nothing and steps over, discarding the rest of the stack.
+  (dolist (rule
+           (list
+            ;; The whole match, then a group which opens at its start.
+            (list "\\(a\\)b" (list 0 1))
+            ;; A group nested directly inside another.
+            (list "\\(\\(a\\)b\\)" (list 1 2))))
+    (pcase-let ((`(,re ,re-subexpr) rule))
+      (ert-info
+       ((format "rule %S %S" re re-subexpr))
+       (let ((hl-prog-extra-list
+              (list
+               (list re re-subexpr 'comment (list 'hl-prog-extra-test-a 'hl-prog-extra-test-b))))
+             (text-initial "/* ab */")
+             ;; The inner group is highlighted over the outer one, which keeps the
+             ;; rest of the match. Neither is dropped.
+             (text-expected
+              (concat
+               "/* <span class='hl-prog-extra-test-b'>a</span>\n" ;
+               "<span class='hl-prog-extra-test-a'>b</span>\n */")))
+         (with-hl-prog-extra-test text-initial #'c-mode
+           (should (equal text-expected (hl-prog-extra-test-html)))))))))
+
+(ert-deftest subexpr-out-of-buffer-order ()
+  "Check sub-expressions which match out of their group order are all highlighted."
+  ;; A group inside a repeating alternation can match after a higher numbered one,
+  ;; so ordering by group number doesn't order by position in the buffer. Here the
+  ;; stack steps backwards, which used to leave everything after the first entry.
+  (let ((hl-prog-extra-list
+         (list
+          (list
+           "\\(?:\\(x\\)\\|\\(y\\)\\)+"
+           (list 1 2)
+           'comment
+           (list 'hl-prog-extra-test-a 'hl-prog-extra-test-b))))
+        (text-initial "/* yx */")
+        (text-expected
+         (concat
+          "/* <span class='hl-prog-extra-test-b'>y</span>\n" ;
+          "<span class='hl-prog-extra-test-a'>x</span>\n */")))
+    (with-hl-prog-extra-test text-initial #'c-mode
+      (should (equal text-expected (hl-prog-extra-test-html))))))
+
+(ert-deftest subexpr-match-is-not-searched-again ()
+  "Check the text of a match isn't searched once its sub-expressions are done."
+  ;; The stack steps backwards for groups that match out of buffer order, the
+  ;; last of them can end before the whole match does. Searching used to resume
+  ;; from there, where another rule could match inside the consumed match and
+  ;; override a face the stack just applied.
+  (let ((hl-prog-extra-list
+         (list
+          (list "x" 0 'comment 'hl-prog-extra-test-c)
+          (list
+           "\\(?:\\(x\\)\\|\\(y\\)\\)+"
+           (list 1 2)
+           'comment
+           (list 'hl-prog-extra-test-a 'hl-prog-extra-test-b))))
+        (text-initial "/* yx */")
+        ;; The first rule never matches, the alternation consumes both letters.
+        (text-expected
+         (concat
+          "/* <span class='hl-prog-extra-test-b'>y</span>\n" ;
+          "<span class='hl-prog-extra-test-a'>x</span>\n */")))
     (with-hl-prog-extra-test text-initial #'c-mode
       (should (equal text-expected (hl-prog-extra-test-html))))))
 
@@ -671,6 +742,33 @@ INLINE-STYLE resolves named faces to their attributes."
           (forward-line 1)
           (font-lock-fontify-region pos-beg (point)))
         (should (equal text-expected (hl-prog-extra-test-html)))))))
+
+(ert-deftest fontify-region-bound-splits-match ()
+  "Check sub-expressions cut off by the fontification bound are kept."
+  ;; Stepping past a sub-expression that begins just before the region bound is
+  ;; forced to land exactly on it, ending the pass with items still stacked.
+  ;; These used to be dropped since the region that follows searches with a
+  ;; bound of its own, silently loosing the highlight for this buffer position.
+  (let ((hl-prog-extra-list
+         (list
+          (list "\\(\\(\n\\)\\)" (list 1 2) nil (list 'hl-prog-extra-test-a 'hl-prog-extra-test-b))))
+        (text-initial "A\nB\n"))
+    (with-temp-buffer
+      (let ((inhibit-message t))
+        (insert text-initial)
+        ;; Not `c-mode' which extends the fontification region,
+        ;; merging the two calls below into a single pass.
+        (text-mode)
+        (font-lock-set-defaults)
+        (hl-prog-extra-mode 1)
+        ;; Fontify each line as its own region, as `jit-lock' does for chunks.
+        (font-lock-fontify-region 1 3)
+        ;; Only the outer group so far, pinning that the bound really did cut
+        ;; the stack short (the two regions were not merged into one pass).
+        (should (eq 'hl-prog-extra-test-a (get-text-property 2 'face)))
+        (font-lock-fontify-region 3 5)
+        ;; The inner group, applied over the outer one as usual.
+        (should (eq 'hl-prog-extra-test-b (get-text-property 2 'face)))))))
 
 
 ;; ---------------------------------------------------------------------------

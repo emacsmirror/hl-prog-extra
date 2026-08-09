@@ -166,9 +166,12 @@ it should return non-nil to exclude this buffer from Global `hl-prog-extra' Mode
 ;; stale keyword highlighting data could be left in the stack.
 ;; To avoid using stale data, ensure the state is what we expect from the last call.
 (defvar-local hl-prog-extra--data-match-stack nil
-  "Internal data used for `hl-prog-extra--match' to do font locking.")
+  "Internal data used for `hl-prog-extra--match' to do font locking.
+A cons of the end of the whole match and a list of (beg end face-index)
+items, one for each sub-expression left to highlight.")
 (defvar-local hl-prog-extra--data-match-stack-state nil
-  "Internal data used to ensure a stale stack is never used.")
+  "Internal data used to ensure a stale stack is never used.
+The point, bound & modification tick of the last search, as (point bound . tick).")
 
 (defconst hl-prog-extra--regexp-group-limit 255
   "The highest regex group number Emacs assigns (`MAX_REGNUM' in the C sources).
@@ -533,8 +536,14 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
 
                 (push (cons re-sub face-sub) sub-face-list)))
 
-            ;; Order by sub-expression, which is the order in the buffer since groups are
-            ;; numbered from left to right. The match stack relies on this as it steps forward.
+            ;; Order by sub-expression, which is usually the order in the buffer since groups
+            ;; are numbered by where they open in the expression.
+            ;;
+            ;; NOTE: usually, not always. A group inside a repeating alternation can match
+            ;; after a higher numbered one, "\\(?:\\(x\\)\\|\\(y\\)\\)+" over "yx" for e.g.,
+            ;; where group 1 matches the second character. The match stack doesn't depend on
+            ;; this, it steps forward on its own account, so ordering here is only to keep
+            ;; the common case walking the buffer in order.
             ;;
             ;; NOTE: not `car-less-than-car', only `sort.el' defines it (without an autoload),
             ;; which Emacs 30 pre-dumps, masking the missing `require' on older releases.
@@ -817,7 +826,7 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
                    ;; Multiple regions, handle the first, store the rest
                    ;; in the stack to be returned before further searching.
                    (t
-                    (setq hl-prog-extra--data-match-stack beg-end-index-list)
+                    (setq hl-prog-extra--data-match-stack (cons end-final beg-end-index-list))
                     (hl-prog-extra--match-impl-precalc bound)
                     ;; Don't step into the next context, allow for the remaining
                     ;; items in the stack to be handled first.
@@ -843,7 +852,7 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
   "Set the match state based on pre-calculated values.
 BOUND is only used to validate the state."
   (declare (important-return-value nil))
-  (let ((item (pop hl-prog-extra--data-match-stack)))
+  (pcase-let ((`(,end-match ,item . ,item-list) hl-prog-extra--data-match-stack))
     (cond
      (item
       (pcase-let ((`(,beg ,end ,index) item))
@@ -852,14 +861,27 @@ BOUND is only used to validate the state."
         ;; Check this before using items in `hl-prog-extra--data-match-stack'.
         (setq hl-prog-extra--data-match-stack-state
               (cond
-               (hl-prog-extra--data-match-stack
+               (item-list
+                ;; Drop the item just returned, keeping the head cons.
+                (setcdr hl-prog-extra--data-match-stack item-list)
                 ;; Go to the beginning of the next match to prevent the bounds from being reached.
-                (goto-char (min (car (car hl-prog-extra--data-match-stack)) bound))
+                ;;
+                ;; NOTE: step past the beginning of this match even when the next one
+                ;; starts there. Font lock guards against an expression that matches nothing
+                ;; looping forever by stepping over a match that didn't move the point,
+                ;; which leaves the point where this stack reads as stale on re-entry and
+                ;; every match after this one is dropped. Sub-expressions share a beginning
+                ;; whenever a group opens at the start of the match.
+                (goto-char (min (max (car (car item-list)) (1+ beg)) bound))
                 ;; Check that this is unchanged on re-entry.
-                (cons (point) bound))
+                (cons (point) (cons bound (buffer-chars-modified-tick))))
                (t
-                ;; Go to the end since there is no further data to parse.
-                (goto-char (min end bound))
+                (setq hl-prog-extra--data-match-stack nil)
+                ;; Go to the end of the whole match since there is no further data to parse.
+                ;; The last item can end before the whole match does when groups match out
+                ;; of their buffer order, stopping there would let another rule match
+                ;; inside this match and override a face the stack just applied.
+                (goto-char (min end-match bound))
                 nil)))
         ;; Found.
         t))
@@ -873,16 +895,28 @@ BOUND is only used to validate the state."
   (when hl-prog-extra--data-match-stack
     ;; Ensure stale data from this stack is never used (even though it's unlikely).
     ;; See `hl-prog-extra--data-match-stack-state' for details.
-    (when (or
-           ;; Should never happen, added check for extra safety.
-           (null hl-prog-extra--data-match-stack-state)
-           ;; The point moved since last search.
-           (null (eq (point) (car hl-prog-extra--data-match-stack-state)))
-           ;; The bound moved since last search.
-           (null (eq bound (cdr hl-prog-extra--data-match-stack-state))))
+    (pcase-let ((`(,point-prev ,bound-prev . ,tick-prev) hl-prog-extra--data-match-stack-state))
+      (when (or
+             ;; Should never happen, added check for extra safety.
+             (null hl-prog-extra--data-match-stack-state)
+             ;; The point moved since last search.
+             (null (eq (point) point-prev))
+             ;; The buffer text changed since last search,
+             ;; where the stack would highlight positions that no longer line up.
+             (null (eq (buffer-chars-modified-tick) tick-prev))
+             ;; The bound moved since last search.
+             ;;
+             ;; NOTE: a new bound is accepted when the last search stopped exactly at
+             ;; its bound, stepping past a sub-expression that begins just before the
+             ;; region bound is forced to land on it, ending the pass with items still
+             ;; stacked. The region that follows continues from the same point with a
+             ;; bound of its own, dropping the stack there silently lost highlights.
+             ;; With the point & tick unchanged the items are known to be positioned
+             ;; correctly, whichever pass returns them.
+             (and (null (eq bound bound-prev)) (null (eq point-prev bound-prev))))
 
-      (setq hl-prog-extra--data-match-stack-state nil)
-      (setq hl-prog-extra--data-match-stack nil)))
+        (setq hl-prog-extra--data-match-stack-state nil)
+        (setq hl-prog-extra--data-match-stack nil))))
 
   (cond
    (hl-prog-extra--data-match-stack
