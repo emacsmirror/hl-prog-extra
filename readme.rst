@@ -227,6 +227,16 @@ Limitations
   Clearly there are other kinds of categories of text based on the language you're writing in,
   so it's possible you might want finer grained control over the contexts in which highlighting is applied.
 
+- The number of rules is limited by the regular expression engine.
+
+  Rules are combined into a single expression, where Emacs numbers at most 255 groups.
+  Each rule takes one, as well as one for each group its own expression declares,
+  so 255 rules which declare no groups of their own fit, or 127 which declare one each.
+  Rules highlighting the whole match with the same face share a number,
+  so any number of those fit as long as they declare no groups of their own.
+
+  Rules that don't fit are reported and skipped when the mode is enabled.
+
 - Overlapping matches aren't supported.
 
   As the text is only scanned once, a match that finds ``NOTE(example text)``,

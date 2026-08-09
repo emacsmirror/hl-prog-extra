@@ -117,6 +117,10 @@
 `face':
   The face to apply.
 
+Items are combined into a single regular expression, where Emacs numbers at most
+255 groups. Each item takes one, as well as one for each group its own expression
+declares, so items past that are reported and skipped.
+
 Modifying this while the variable `hl-prog-extra-mode' is enabled requires calling
 `hl-prog-extra-refresh' to update the internal state."
   :type
@@ -165,6 +169,11 @@ it should return non-nil to exclude this buffer from Global `hl-prog-extra' Mode
   "Internal data used for `hl-prog-extra--match' to do font locking.")
 (defvar-local hl-prog-extra--data-match-stack-state nil
   "Internal data used to ensure a stale stack is never used.")
+
+(defconst hl-prog-extra--regexp-group-limit 255
+  "The highest regex group number Emacs assigns (`MAX_REGNUM' in the C sources).
+A group numbered above this compiles without error but is silently shy,
+so nothing can find which item matched.")
 
 
 ;; ---------------------------------------------------------------------------
@@ -478,9 +487,11 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
           ;; to the item's own groups don't line up and unrelated groups are highlighted.
           (uniq-list (list))
           (uniq-list-len 0)
-          ;; Use `equal' since the keys are lists of (sub-expr . face-index) pairs.
-          ;; Faces are keyed by `face-list-contents', which resolves them to an index first.
-          (uniq-list-contents (make-hash-table :test 'equal :size len)))
+          ;; Use `equal' since the keys are lists of (sub-expr . face) pairs,
+          ;; where faces that compare equal share a group & face index.
+          (uniq-list-contents (make-hash-table :test 'equal :size len))
+          ;; Set once the group numbers run past `hl-prog-extra--regexp-group-limit'.
+          (is-group-limit-reached nil))
 
       (pcase-dolist (`(,re ,re-subexpr ,context ,face) syn-regex-list)
 
@@ -491,15 +502,19 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
 
         (let ((error-msg
                ;; Be strict here since any errors in font-locking are difficult for users to debug.
-               (hl-prog-extra--validate-keyword-item (list re re-subexpr context face)))
+               ;; Once the limit is reached every item is skipped, don't compile each
+               ;; remaining regex for a result the skip below discards.
+               (and (null is-group-limit-reached)
+                    (hl-prog-extra--validate-keyword-item (list re re-subexpr context face))))
 
               ;; Each sub-expression and the face to use for it.
               (sub-face-list nil)
 
-              (uniq-index nil)
-              (face-index nil))
+              (uniq-index nil))
 
           (cond
+           (is-group-limit-reached
+            nil) ; Reported once, when the limit was reached.
            (error-msg
             (message "%s: %s (item %d)" item-error-prefix error-msg item-index))
            (t ; No error.
@@ -516,15 +531,7 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
                 ;; Note that a zero `re-sub' is not the same as nil,
                 ;; since a zero group is needed for matching the first level of parentheses.
 
-                (let ((key face-sub))
-                  (setq face-index (gethash key face-list-contents))
-
-                  (unless face-index
-                    (setq face-index (hash-table-count face-list-contents))
-                    (push face-sub face-list)
-                    (puthash key face-index face-list-contents)))
-
-                (push (cons re-sub face-index) sub-face-list)))
+                (push (cons re-sub face-sub) sub-face-list)))
 
             ;; Order by sub-expression, which is the order in the buffer since groups are
             ;; numbered from left to right. The match stack relies on this as it steps forward.
@@ -543,78 +550,118 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
             ;; from the highest number in the combined regex so far, not from the shared
             ;; group), which is harmless as nothing reads them, while the padding keeps
             ;; every later item's group above the numbers they can be assigned.
-            (let ((uniq-is-shared
-                   (and (null (cdr sub-face-list)) (zerop (car (car sub-face-list))))))
-              (when uniq-is-shared
-                (setq uniq-index (gethash sub-face-list uniq-list-contents)))
+            (let* ((uniq-is-shared
+                    (and (null (cdr sub-face-list)) (zerop (car (car sub-face-list)))))
+                   (uniq-index-shared
+                    (and uniq-is-shared (gethash sub-face-list uniq-list-contents)))
+                   ;; This item takes a group of its own (unless it shares one), followed by
+                   ;; the groups Emacs assigns to the groups its regex declares.
+                   ;; NOTE: `regexp-opt-depth' doesn't count explicitly numbered groups, so a
+                   ;; regex which numbers its own isn't supported, the numbers wouldn't line up.
+                   (uniq-list-len-next
+                    (+ uniq-list-len (regexp-opt-depth re)
+                       (cond
+                        (uniq-index-shared
+                         0)
+                        (t
+                         1)))))
 
-              (unless uniq-index
-                (setq uniq-index uniq-list-len)
-                (push sub-face-list uniq-list)
-                (incf uniq-list-len)
-                (when uniq-is-shared
-                  (puthash sub-face-list uniq-index uniq-list-contents))))
+              (cond
+               ;; Numbers beyond the limit are never assigned, leaving the match data without
+               ;; a group to identify the item by, which breaks font locking for the buffer.
+               ;;
+               ;; NOTE: stop at the first item that doesn't fit, instead of skipping only
+               ;; the items that don't. A later item can still fit when it shares a group
+               ;; and declares none of its own, however a list which is used up to a point
+               ;; is simpler to report and to reason about than one with holes in it.
+               ((> uniq-list-len-next hl-prog-extra--regexp-group-limit)
+                (setq is-group-limit-reached t)
+                (message "%s: more than %d regex groups, skipping the remaining items (item %d)"
+                         item-error-prefix
+                         hl-prog-extra--regexp-group-limit
+                         item-index))
+               (t
+                (setq uniq-index uniq-index-shared)
+                (unless uniq-index
+                  ;; The item fits, resolve its faces to indices,
+                  ;; claiming an index for each face not seen before.
+                  ;; A skipped item claiming a face would add a highlight
+                  ;; that can never match, so this only runs once it fits.
+                  (let ((sub-face-index-list
+                         (mapcar
+                          (lambda (sub-face)
+                            (let* ((face-sub (cdr sub-face))
+                                   (face-index (gethash face-sub face-list-contents)))
+                              (unless face-index
+                                (setq face-index (hash-table-count face-list-contents))
+                                (push face-sub face-list)
+                                (puthash face-sub face-index face-list-contents))
+                              (cons (car sub-face) face-index)))
+                          sub-face-list)))
+                    (setq uniq-index uniq-list-len)
+                    (push sub-face-index-list uniq-list)
+                    (incf uniq-list-len)
+                    (when uniq-is-shared
+                      (puthash sub-face-list uniq-index uniq-list-contents))))
 
-            ;; Reserve the group numbers Emacs assigns to the groups this item's regex
-            ;; declares, they follow on from the highest number used so far.
-            ;; NOTE: `regexp-opt-depth' doesn't count explicitly numbered groups, so a regex
-            ;; which numbers its own groups isn't supported, the numbers wouldn't line up.
-            (dotimes (_ (regexp-opt-depth re))
-              (push nil uniq-list)
-              (incf uniq-list-len))
+                ;; Pad out the groups this item's regex declares, they take the numbers
+                ;; directly following its own, so no later item may use them.
+                (while (< uniq-list-len uniq-list-len-next)
+                  (push nil uniq-list)
+                  (incf uniq-list-len))
 
-            ;; Group the regex into a larger numbered regex using \\(?NUM:...).
-            ;; These expressions are then joined to make a single regex
-            ;; (per-unique context combination) outside of this loop.
-            (let ((regex-fmt (format "\\(?%d:%s\\)" (1+ uniq-index) re))
-                  (in-comment-only nil)
-                  (in-comment-doc nil)
-                  (in-string-only nil)
-                  (in-string-doc nil)
-                  (in-rest nil))
-              (dolist (context-symbol context)
-                (cond
-                 ((eq context-symbol 'comment)
-                  (setq in-comment-only t)
-                  (setq in-comment-doc t))
-                 ((eq context-symbol 'comment-only)
-                  (setq in-comment-only t))
-                 ((eq context-symbol 'comment-doc)
-                  (setq in-comment-doc t))
-                 ((eq context-symbol 'string)
-                  (setq in-string-only t)
-                  (setq in-string-doc t))
-                 ((eq context-symbol 'string-only)
-                  (setq in-string-only t))
-                 ((eq context-symbol 'string-doc)
-                  (setq in-string-doc t))
-                 ((null context-symbol)
-                  (setq in-rest t))
-                 (t ; Checked for above.
-                  (error "Invalid context %S" context-symbol))))
+                ;; Group the regex into a larger numbered regex using \\(?NUM:...).
+                ;; These expressions are then joined to make a single regex
+                ;; (per-unique context combination) outside of this loop.
+                (let ((regex-fmt (format "\\(?%d:%s\\)" (1+ uniq-index) re))
+                      (in-comment-only nil)
+                      (in-comment-doc nil)
+                      (in-string-only nil)
+                      (in-string-doc nil)
+                      (in-rest nil))
+                  (dolist (context-symbol context)
+                    (cond
+                     ((eq context-symbol 'comment)
+                      (setq in-comment-only t)
+                      (setq in-comment-doc t))
+                     ((eq context-symbol 'comment-only)
+                      (setq in-comment-only t))
+                     ((eq context-symbol 'comment-doc)
+                      (setq in-comment-doc t))
+                     ((eq context-symbol 'string)
+                      (setq in-string-only t)
+                      (setq in-string-doc t))
+                     ((eq context-symbol 'string-only)
+                      (setq in-string-only t))
+                     ((eq context-symbol 'string-doc)
+                      (setq in-string-doc t))
+                     ((null context-symbol)
+                      (setq in-rest t))
+                     (t ; Checked for above.
+                      (error "Invalid context %S" context-symbol))))
 
-              ;; Take this from the contexts the item ends up in, not the symbols naming
-              ;; them. An overlapping list such as `(comment comment-only)' reaches both,
-              ;; where checking for a documentation comment can only cost time.
-              (unless (eq in-comment-only in-comment-doc)
-                (setq is-complex-comment t))
-              (unless (eq in-string-only in-string-doc)
-                (setq is-complex-string t))
+                  ;; Take this from the contexts the item ends up in, not the symbols naming
+                  ;; them. An overlapping list such as `(comment comment-only)' reaches both,
+                  ;; where checking for a documentation comment can only cost time.
+                  (unless (eq in-comment-only in-comment-doc)
+                    (setq is-complex-comment t))
+                  (unless (eq in-string-only in-string-doc)
+                    (setq is-complex-string t))
 
-              ;; NOTE: take the contexts as a set. An overlapping list such as
-              ;; `(comment comment-only)' would otherwise name this item twice in the
-              ;; same regex, where the duplicate can never match anything the first
-              ;; doesn't, but its groups still take numbers no item reserved.
-              (when in-comment-only
-                (push regex-fmt re-comment-only))
-              (when in-comment-doc
-                (push regex-fmt re-comment-doc))
-              (when in-string-only
-                (push regex-fmt re-string-only))
-              (when in-string-doc
-                (push regex-fmt re-string-doc))
-              (when in-rest
-                (push regex-fmt re-rest))))))
+                  ;; NOTE: take the contexts as a set. An overlapping list such as
+                  ;; `(comment comment-only)' would otherwise name this item twice in the
+                  ;; same regex, where the duplicate can never match anything the first
+                  ;; doesn't, but its groups still take numbers no item reserved.
+                  (when in-comment-only
+                    (push regex-fmt re-comment-only))
+                  (when in-comment-doc
+                    (push regex-fmt re-comment-doc))
+                  (when in-string-only
+                    (push regex-fmt re-string-only))
+                  (when in-string-doc
+                    (push regex-fmt re-string-doc))
+                  (when in-rest
+                    (push regex-fmt re-rest)))))))))
 
         (incf item-index))
 

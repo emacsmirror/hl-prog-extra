@@ -818,6 +818,47 @@ INLINE-STYLE resolves named faces to their attributes."
      (should
       (null (hl-prog-extra--validate-keyword-item (list re 0 'comment 'hl-prog-extra-test-a)))))))
 
+(ert-deftest rule-group-limit-is-skipped ()
+  "Check a list needing more regex groups than Emacs numbers is truncated."
+  ;; Each item takes a group of its own as well as the one its regex declares,
+  ;; so this list runs past the limit part way through. Matching an item beyond
+  ;; it used to leave the match data without any group set, which raised an
+  ;; error from font lock and lost every highlight in the buffer.
+  (let ((hl-prog-extra-list
+         (cons
+          (list "\\<ZZ\\>" 0 'comment 'hl-prog-extra-test-a)
+          (mapcar
+           (lambda (i)
+             (list (format "<\\(W%d\\)>" i) 1 'comment 'hl-prog-extra-test-b))
+           (number-sequence 1 hl-prog-extra--regexp-group-limit))))
+        (text-initial "/* ZZ <W1> <W200> */")
+        ;; The items within the limit still highlight, those past it are skipped.
+        (text-expected
+         (concat
+          "/* <span class='hl-prog-extra-test-a'>ZZ</span>\n" ;
+          " &lt;<span class='hl-prog-extra-test-b'>W1</span>\n&gt; &lt;W200&gt; */")))
+    (with-hl-prog-extra-test text-initial #'c-mode
+      (should (equal text-expected (hl-prog-extra-test-html))))))
+
+(ert-deftest rule-group-limit-leaves-no-face ()
+  "Check an item skipped for the group limit leaves no face behind."
+  ;; A face nothing else uses would still add a highlight that can never match.
+  ;; Faces are only claimed once an item is known to fit, the second item here
+  ;; declares more groups than can be numbered, so its face must not be stored.
+  (let ((rule-list
+         (list
+          (list "\\<ZZ\\>" 0 'comment 'hl-prog-extra-test-a)
+          ;; Declares more groups on its own than can be numbered.
+          (list
+           (apply #'concat (make-list (1+ hl-prog-extra--regexp-group-limit) "\\(a\\)"))
+           0
+           'comment
+           'hl-prog-extra-test-b))))
+    (pcase-let ((`(,_re-list ,face-vector ,_uniq-vector ,_ ,_)
+                 (let ((inhibit-message t))
+                   (hl-prog-extra--precompute-regex rule-list))))
+      (should (equal (vector 'hl-prog-extra-test-a) face-vector)))))
+
 (ert-deftest rule-group-shared-reserves-own-groups ()
   "Check what items sharing a group reserve for the groups they declare."
   ;; The shared group is claimed once while each item's own groups are still
