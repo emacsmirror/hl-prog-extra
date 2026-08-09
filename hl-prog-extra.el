@@ -221,13 +221,15 @@ it should return non-nil to exclude this buffer from Global `hl-prog-extra' Mode
 
          (validate-re-fn
           (lambda (re)
-            (catch 'error
-              (unless (stringp re)
-                (throw 'error (format "expected a string, not a %S!" (type-of re))))
+            ;; NOTE: each check only runs once those before it pass,
+            ;; the order matters since they build on each other.
+            (let ((item-error nil))
+              (cond
+               ((null (stringp re))
+                (format "expected a string, not a %S!" (type-of re)))
 
-              (let ((item-error (hl-prog-extra--regexp-valid-or-error re)))
-                (when item-error
-                  (throw 'error (format "invalid regex \"%s\"" item-error)))))))
+               ((setq item-error (hl-prog-extra--regexp-valid-or-error re))
+                (format "invalid regex \"%s\"" item-error))))))
 
          ;; ---------------------------------
          ;; Check `re-subexpr', 2nd argument.
