@@ -290,6 +290,42 @@ INLINE-STYLE resolves named faces to their attributes."
    "  nil)")
   "Lisp with the same word in a doc-string, a plain string and a comment.")
 
+(ert-deftest context-overlapping ()
+  "Check an overlapping context list doesn't shift a later item's sub-expression."
+  ;; Both symbols select the plain comment context, where naming the item twice
+  ;; used to take group numbers the second item had already reserved.
+  (let ((hl-prog-extra-list
+         (list
+          (list
+           "A\\(x\\)\\(y\\)" 0 (list 'comment 'comment-only) 'hl-prog-extra-test-a)
+          (list "B\\([a-z]\\)" 1 'comment 'hl-prog-extra-test-b)))
+        (text-initial "/* Axy Bz */")
+        (text-expected
+         (concat
+          "/* <span class='hl-prog-extra-test-a'>Axy</span>\n" ;
+          " B<span class='hl-prog-extra-test-b'>z</span>\n */")))
+    (with-hl-prog-extra-test text-initial #'c-mode
+      (should (equal text-expected (hl-prog-extra-test-html))))))
+
+(ert-deftest context-overlapping-is-not-complex ()
+  "Check the documentation check is only used when the two contexts differ."
+  (dolist (case
+           (list
+            ;; Reaching both comment contexts leaves nothing to tell apart.
+            (cons 'comment nil)
+            (cons (list 'comment 'comment-only) nil)
+            (cons (list 'comment-only 'comment-doc) nil)
+            ;; Only one of the two, so the contexts differ.
+            (cons 'comment-only t)
+            (cons 'comment-doc t)))
+    (pcase-let ((`(,context . ,expected) case))
+      (ert-info
+       ((format "context %S" context))
+       (pcase-let ((`(,_re-list ,_face-vector ,_uniq-vector ,is-complex-comment ,_)
+                    (hl-prog-extra--precompute-regex
+                     (list (list "\\<XX\\>" 0 context 'hl-prog-extra-test-a)))))
+         (should (eq expected (and is-complex-comment t))))))))
+
 (ert-deftest context-string-doc ()
   "Check `string-doc' matches a documentation string and not a plain string."
   (let ((hl-prog-extra-list (list (list "\\<XX\\>" 0 'string-doc 'hl-prog-extra-test-a)))

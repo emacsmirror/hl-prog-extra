@@ -566,31 +566,55 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
             ;; Group the regex into a larger numbered regex using \\(?NUM:...).
             ;; These expressions are then joined to make a single regex
             ;; (per-unique context combination) outside of this loop.
-            (let ((regex-fmt (format "\\(?%d:%s\\)" (1+ uniq-index) re)))
+            (let ((regex-fmt (format "\\(?%d:%s\\)" (1+ uniq-index) re))
+                  (in-comment-only nil)
+                  (in-comment-doc nil)
+                  (in-string-only nil)
+                  (in-string-doc nil)
+                  (in-rest nil))
               (dolist (context-symbol context)
                 (cond
                  ((eq context-symbol 'comment)
-                  (push regex-fmt re-comment-only)
-                  (push regex-fmt re-comment-doc))
+                  (setq in-comment-only t)
+                  (setq in-comment-doc t))
                  ((eq context-symbol 'comment-only)
-                  (setq is-complex-comment t)
-                  (push regex-fmt re-comment-only))
+                  (setq in-comment-only t))
                  ((eq context-symbol 'comment-doc)
-                  (setq is-complex-comment t)
-                  (push regex-fmt re-comment-doc))
+                  (setq in-comment-doc t))
                  ((eq context-symbol 'string)
-                  (push regex-fmt re-string-only)
-                  (push regex-fmt re-string-doc))
+                  (setq in-string-only t)
+                  (setq in-string-doc t))
                  ((eq context-symbol 'string-only)
-                  (setq is-complex-string t)
-                  (push regex-fmt re-string-only))
+                  (setq in-string-only t))
                  ((eq context-symbol 'string-doc)
-                  (setq is-complex-string t)
-                  (push regex-fmt re-string-doc))
+                  (setq in-string-doc t))
                  ((null context-symbol)
-                  (push regex-fmt re-rest))
+                  (setq in-rest t))
                  (t ; Checked for above.
-                  (error "Invalid context %S" context-symbol))))))))
+                  (error "Invalid context %S" context-symbol))))
+
+              ;; Take this from the contexts the item ends up in, not the symbols naming
+              ;; them. An overlapping list such as `(comment comment-only)' reaches both,
+              ;; where checking for a documentation comment can only cost time.
+              (unless (eq in-comment-only in-comment-doc)
+                (setq is-complex-comment t))
+              (unless (eq in-string-only in-string-doc)
+                (setq is-complex-string t))
+
+              ;; NOTE: take the contexts as a set. An overlapping list such as
+              ;; `(comment comment-only)' would otherwise name this item twice in the
+              ;; same regex, where the duplicate can never match anything the first
+              ;; doesn't, but its groups still take numbers no item reserved.
+              (when in-comment-only
+                (push regex-fmt re-comment-only))
+              (when in-comment-doc
+                (push regex-fmt re-comment-doc))
+              (when in-string-only
+                (push regex-fmt re-string-only))
+              (when in-string-doc
+                (push regex-fmt re-string-doc))
+              (when in-rest
+                (push regex-fmt re-rest))))))
 
         (incf item-index))
 
