@@ -101,6 +101,8 @@
   Group to use when highlighting the expression (zero for the whole match).
   A group the expression doesn't have falls back to the whole match,
   while an optional group that didn't match highlights nothing.
+
+  May also be a list of groups, each highlighted with its own face.
 `context':
   A symbol in:
   - `'comment' - All comments.
@@ -117,7 +119,10 @@
   A list of these symbols is also supported
   (allowing a single item to match multiple contexts).
 `face':
-  The face to apply.
+  The face to apply, as a symbol, a string or a face property list.
+
+  May also be a list of faces, one for each group in `regex-subexpr',
+  where both lists must be the same length.
 
 Items are combined into a single regular expression, where Emacs numbers at most
 255 groups. Each item takes one, as well as one for each group its own expression
@@ -126,20 +131,48 @@ declares, so items past that are reported and skipped.
 Modifying this while the variable `hl-prog-extra-mode' is enabled requires calling
 `hl-prog-extra-refresh' to update the internal state."
   :type
-  '(repeat
-    (list
-     regexp
-     integer
-     (choice (const :tag "Comment (Any)" :value comment)
-             (const :tag "Comment (Only)" :value comment-only)
-             (const :tag "Comment (Doc)" :value comment-doc)
-             (const :tag "String (Any)" :value string)
-             (const :tag "String (Only)" :value string-only)
-             (const :tag "String (Doc)" :value string-doc)
-             (const :tag "Other" :value nil)
-             ;; A list of choices is also supported.
-             (repeat symbol))
-     face)))
+  ;; The face widgets are shared between the single face and the list of faces,
+  ;; so the two ways a face can be edited never drift apart.
+  (let ((face-widget-list
+         '((face :tag "Face") ;
+           (string :tag "Face name")
+           ;; Attributes always follow a keyword, which no list of faces opens with.
+           ;; Without this check the `plist' widget matches any list,
+           ;; taking the values of the "Faces" choice below (making it unreachable).
+           (plist :tag "Face attributes"
+                  :match (lambda (_widget value) (keywordp (car-safe value))))
+           ;; The legacy `(foreground-color . COLOR)' face and its background
+           ;; counterpart, which validation deliberately accepts,
+           ;; see `hl-prog-extra--validate-keyword-item'.
+           (cons :tag "Color (legacy)"
+                 (choice (const foreground-color) (const background-color))
+                 (string :tag "Color"))))
+        ;; An empty list satisfies the plain `repeat' widget while validation
+        ;; rejects it when the mode is enabled, where the report is easily missed,
+        ;; don't accept values that are then skipped.
+        (repeat-match-non-empty
+         (lambda (widget value) (and value (widget-editable-list-match widget value)))))
+    `(repeat
+      (list
+       regexp
+       (choice
+        (integer :tag "Group")
+        ;; A list of groups is also supported.
+        (repeat :tag "Groups" :match ,repeat-match-non-empty integer))
+       (choice
+        (const :tag "Comment (Any)" :value comment)
+        (const :tag "Comment (Only)" :value comment-only)
+        (const :tag "Comment (Doc)" :value comment-doc)
+        (const :tag "String (Any)" :value string)
+        (const :tag "String (Only)" :value string-only)
+        (const :tag "String (Doc)" :value string-doc)
+        (const :tag "Other" :value nil)
+        ;; A list of choices is also supported.
+        (repeat symbol))
+       (choice
+        ,@face-widget-list
+        ;; A list of faces is also supported.
+        (repeat :tag "Faces" :match ,repeat-match-non-empty (choice ,@face-widget-list)))))))
 
 (defcustom hl-prog-extra-preset nil
   "Include the default preset for the major mode (when available)."
