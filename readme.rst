@@ -57,6 +57,8 @@ Customization
    ``regex-subexpr``
       Group to use when highlighting the expression (zero for the entire expression).
 
+      A group the expression doesn't have falls back to the whole match.
+
       May also be a list of groups, see the `Multi-Group Matching`_ example.
    ``context``
       A symbol (or list of symbols) in:

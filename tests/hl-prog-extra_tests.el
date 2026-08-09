@@ -488,6 +488,37 @@ INLINE-STYLE resolves named faces to their attributes."
     (with-hl-prog-extra-test text-initial #'c-mode
       (should (equal text-expected (hl-prog-extra-test-html))))))
 
+(ert-deftest subexpr-optional-none-match-single ()
+  "Check one optional sub-expression which didn't match highlights nothing."
+  ;; The whole match used to be highlighted, unlike the same rule written with
+  ;; more than one sub-expression, see `subexpr-multiple-optional-none-match'.
+  (dolist (rule
+           (list
+            (list "\\<NOTE\\>\\(([^)]+)\\)?" 1 'comment 'hl-prog-extra-test-a)
+            (list "\\<NOTE\\>\\(([^)]+)\\)?" (list 1) 'comment (list 'hl-prog-extra-test-a))))
+    (ert-info
+     ((format "rule %S" rule))
+     (let ((hl-prog-extra-list (list rule))
+           (text-initial "/* NOTE plain */"))
+       (with-hl-prog-extra-test text-initial #'c-mode
+         (should (equal text-initial (hl-prog-extra-test-html))))))))
+
+(ert-deftest subexpr-out-of-range-uses-whole-match ()
+  "Check a sub-expression the regex has no group for uses the whole match."
+  ;; Raising an error while font-locking isn't practical, so this is accepted.
+  (dolist (rule
+           (list
+            (list "\\<XX\\>" 3 'comment 'hl-prog-extra-test-a)
+            (list "\\<XX\\>" (list 3) 'comment (list 'hl-prog-extra-test-a))))
+    (ert-info
+     ((format "rule %S" rule))
+     (let ((hl-prog-extra-list (list rule))
+           (text-initial "/* XX */"))
+       (with-hl-prog-extra-test text-initial #'c-mode
+         (should
+          (equal
+           "/* <span class='hl-prog-extra-test-a'>XX</span>\n */" (hl-prog-extra-test-html))))))))
+
 (ert-deftest subexpr-shared-beginning ()
   "Check sub-expressions which begin at the same position are all highlighted."
   ;; A group opening at the start of the match begins where the whole match does.

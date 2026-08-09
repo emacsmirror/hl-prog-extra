@@ -99,6 +99,8 @@
   Items which do are reported and skipped.
 `regex-subexpr':
   Group to use when highlighting the expression (zero for the whole match).
+  A group the expression doesn't have falls back to the whole match,
+  while an optional group that didn't match highlights nothing.
 `context':
   A symbol in:
   - `'comment' - All comments.
@@ -513,6 +515,10 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
               ;; Each sub-expression and the face to use for it.
               (sub-face-list nil)
 
+              ;; The number of groups the item's own regex declares,
+              ;; only known once the regex is known to be a valid string.
+              (re-depth nil)
+
               (uniq-index nil))
 
           (cond
@@ -521,6 +527,8 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
            (error-msg
             (message "%s: %s (item %d)" item-error-prefix error-msg item-index))
            (t ; No error.
+
+            (setq re-depth (regexp-opt-depth re))
 
             (unless (listp re-subexpr)
               ;; Move into a list to avoid duplicate code-paths.
@@ -533,6 +541,13 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
 
                 ;; Note that a zero `re-sub' is not the same as nil,
                 ;; since a zero group is needed for matching the first level of parentheses.
+
+                ;; A sub-expression the regex has no group for can never match,
+                ;; use the whole match since raising an error while font-locking
+                ;; isn't practical. Note that this is not the same as a group which
+                ;; is optional and didn't match, where nothing is highlighted.
+                (when (> re-sub re-depth)
+                  (setq re-sub 0))
 
                 (push (cons re-sub face-sub) sub-face-list)))
 
@@ -568,7 +583,7 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
                    ;; NOTE: `regexp-opt-depth' doesn't count explicitly numbered groups, so a
                    ;; regex which numbers its own isn't supported, the numbers wouldn't line up.
                    (uniq-list-len-next
-                    (+ uniq-list-len (regexp-opt-depth re)
+                    (+ uniq-list-len re-depth
                        (cond
                         (uniq-index-shared
                          0)
@@ -796,8 +811,8 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
                              (uniq-data (aref uniq-array uniq-index))
                              (beg-end-index-list (list)))
 
-                  ;; Extract the region of each sub-expression, skipping those that didn't
-                  ;; match (they may be optional or out of range).
+                  ;; Extract the region of each sub-expression,
+                  ;; skipping any optional group that didn't match.
                   (pcase-dolist (`(,sub-expr . ,face-index) uniq-data)
                     (pcase-let ((`(,beg ,end) (nthcdr (* 2 sub-expr) match-tail)))
                       (when (and beg end)
@@ -805,18 +820,13 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
                   (setq beg-end-index-list (nreverse beg-end-index-list))
 
                   (cond
-                   ;; Nothing to highlight.
+                   ;; Nothing to highlight, every sub-expression is optional and unmatched.
+                   ;; NOTE: an out of range sub-expression doesn't reach this,
+                   ;; it's replaced by the whole match in `hl-prog-extra--precompute-regex'.
                    ((null beg-end-index-list)
-                    (cond
-                     ;; A single sub-expression falls back to the whole match, since the
-                     ;; sub-expression may be out of range and raising an error during
-                     ;; font-locking isn't practical.
-                     ((and uniq-data (null (cdr uniq-data)))
-                      (hl-prog-extra--match-index-set beg-final end-final (cdr (car uniq-data))))
-                     (t
-                      ;; Clear the groups so the match data left by the search isn't used,
-                      ;; as its groups don't correspond to the faces of this item.
-                      (set-match-data (list beg-final end-final)))))
+                    ;; Clear the groups so the match data left by the search isn't used,
+                    ;; as its groups don't correspond to the faces of this item.
+                    (set-match-data (list beg-final end-final)))
 
                    ;; A single region, use simple handling (nothing clever).
                    ((null (cdr beg-end-index-list))
