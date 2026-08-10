@@ -1042,6 +1042,27 @@ INLINE-STYLE resolves named faces to their attributes."
         ;; The comment face is left as the major mode set it.
         (should (eq 'font-lock-comment-face (get-text-property 5 'face)))))))
 
+(ert-deftest rule-invalid-face-attributes ()
+  "Check malformed face attributes are reported instead of highlighting nothing."
+  ;; Any cons used to pass the face check while redisplay only merges keyword &
+  ;; value pairs, so a mis-written (:foreground . "red") was saved by customize
+  ;; then silently never highlighted.
+  (dolist (rule
+           (list
+            ;; A dotted pair that isn't the legacy color form.
+            (list "\\<XX\\>" 0 'comment (cons :foreground "red"))
+            ;; An attribute missing its value.
+            (list "\\<XX\\>" 0 'comment (list :foreground "red" :weight))
+            ;; A value in an attribute's place.
+            (list "\\<XX\\>" 0 'comment (list :foreground "red" 'bold t))))
+    (ert-info
+     ((format "rule %S" rule))
+     (should (stringp (hl-prog-extra--validate-keyword-item rule)))
+     (let ((hl-prog-extra-list (list rule))
+           (text-initial "/* XX */"))
+       (with-hl-prog-extra-test text-initial #'c-mode
+         (should (equal "/* XX */" (hl-prog-extra-test-html))))))))
+
 (ert-deftest rule-invalid-is-skipped ()
   "Check an invalid rule is skipped without discarding the valid rules."
   (let ((hl-prog-extra-list
@@ -1068,8 +1089,9 @@ INLINE-STYLE resolves named faces to their attributes."
               (list "\\<XX\\>" 0 'comment 'hl-prog-extra-test-a)
               (list "\\<XX\\>" 0 'comment "hl-prog-extra-test-a")
               (list "\\<XX\\>" 0 'comment '(:background "#000000" :foreground "#FFFFFF"))
-              ;; The legacy dotted pair face.
+              ;; The legacy dotted pair faces.
               (list "\\<XX\\>" 0 'comment (cons 'foreground-color "red"))
+              (list "\\<XX\\>" 0 'comment (cons 'background-color "blue"))
               ;; A list of contexts.
               (list "\\<XX\\>" 0 (list 'comment 'string) 'hl-prog-extra-test-a)
               ;; Sub-expressions with faces of different kinds.
@@ -1101,6 +1123,10 @@ INLINE-STYLE resolves named faces to their attributes."
               ;; A face list shorter than the group list.
               (list "\\([a-z]+\\)=\\([a-z]+\\)" (list 1 2) 'comment
                     (list 'hl-prog-extra-test-a))
+              ;; A dotted pair as face attributes.
+              (list "\\<XX\\>" 0 'comment (cons :foreground "red"))
+              ;; Face attributes missing a value.
+              (list "\\<XX\\>" 0 'comment (list :foreground "red" :weight))
               ;; A list containing an unknown context.
               (list "\\<XX\\>" 0 (list 'unknown-context) 'hl-prog-extra-test-a)))
       (ert-info

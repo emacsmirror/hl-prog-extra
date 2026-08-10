@@ -139,8 +139,11 @@ Modifying this while the variable `hl-prog-extra-mode' is enabled requires calli
            ;; Attributes always follow a keyword, which no list of faces opens with.
            ;; Without this check the `plist' widget matches any list,
            ;; taking the values of the "Faces" choice below (making it unreachable).
+           ;; A dotted pair also opens with a keyword while the widget can't
+           ;; represent it, reading the face back as nil, don't match those.
            (plist :tag "Face attributes"
-                  :match (lambda (_widget value) (keywordp (car-safe value))))
+                  :match (lambda (_widget value)
+                                 (and (keywordp (car-safe value)) (proper-list-p value))))
            ;; The legacy `(foreground-color . COLOR)' face and its background
            ;; counterpart, which validation deliberately accepts,
            ;; see `hl-prog-extra--validate-keyword-item'.
@@ -419,14 +422,34 @@ Matches which aren't part of the expression itself are skipped."
             (catch 'error
               ;; NOTE: a nil face is rejected, font lock applies it over the match
               ;; which clears the face the major mode set instead of doing nothing.
-              ;; A dotted pair is accepted, the legacy `(foreground-color . COLOR)'
-              ;; face takes that form.
               (unless (or (facep face) (and face (listp face)))
                 (throw
                  'error
                  (format
                   "expected a symbol, string, face, or list of face properties; %S is not known!"
-                  face))))))
+                  face)))
+              (when (consp face)
+                (cond
+                 ;; The legacy `(foreground-color . COLOR)' face and its background
+                 ;; counterpart are the only dotted pairs a face can take.
+                 ((null (proper-list-p face))
+                  (unless (and (memq (car face) (list 'foreground-color 'background-color))
+                               (stringp (cdr face)))
+                    (throw
+                     'error
+                     (format
+                      "expected face attributes or a legacy (foreground-color . COLOR), not %S!"
+                      face))))
+                 ;; NOTE: redisplay only merges face attributes as keyword & value pairs,
+                 ;; a mis-written pair such as (:foreground . "red") otherwise passes,
+                 ;; saved by customize then never highlighting anything.
+                 ((keywordp (car face))
+                  (let ((attrs face))
+                    (while attrs
+                      (unless (and (keywordp (car attrs)) (cdr attrs))
+                        (throw 'error
+                               (format "expected keyword & value pairs, %S is malformed!" face)))
+                      (setq attrs (cddr attrs))))))))))
 
          (validate-face-list-fn
           (lambda (face re-subexpr)
