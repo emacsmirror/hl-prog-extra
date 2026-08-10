@@ -541,8 +541,10 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
           (is-complex-string nil)
 
           ;; Unique faces, used to build the arguments for font locking.
+          ;; Faces that compare `equal' share an index, so a face written out
+          ;; twice doesn't add a duplicate keyword entry.
           (face-list (list))
-          (face-list-contents (make-hash-table :test 'eq :size len))
+          (face-list-contents (make-hash-table :test 'equal :size len))
           ;; Unique values aligned with the regex groups, each element is a list of
           ;; (sub-expr . face-index) for the item using that group, nil for an unused group.
           ;; The length doubles as the highest regex group number used so far.
