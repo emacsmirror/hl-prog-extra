@@ -7,6 +7,8 @@
 ;; See: `hl-prog-extra_tests.py' for launching this script.
 
 (require 'ert)
+;; For `ert-with-message-capture'.
+(require 'ert-x)
 
 ;;; Code:
 
@@ -1261,6 +1263,17 @@ The checks that loop over them pass trivially otherwise."
 (ert-deftest preset-unknown-mode ()
   "Check an unknown mode returns nil instead of raising an error."
   (should (null (hl-prog-extra-preset "hl-prog-extra-no-such-mode"))))
+
+(ert-deftest preset-unknown-mode-message ()
+  "Check a preset that isn't found is reported unless QUIET is passed."
+  ;; A missing preset falls through `require' without an error, so the message
+  ;; is all there is to tell a user who mistyped a mode from an empty preset.
+  (ert-with-message-capture messages
+    (should (null (hl-prog-extra-preset "hl-prog-extra-no-such-mode")))
+    (should (string-match-p "not found" messages)))
+  (ert-with-message-capture messages
+    (should (null (hl-prog-extra-preset "hl-prog-extra-no-such-mode" t)))
+    (should (null (string-match-p "not found" messages)))))
 
 (ert-deftest preset-mode-from-major-mode ()
   "Check the mode defaults to `major-mode' when not given."

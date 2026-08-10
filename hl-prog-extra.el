@@ -1044,14 +1044,17 @@ see each preset's documentation for available keywords."
     ;; NOTE: `intern-soft' could be used to avoid adding symbols to the obarray
     ;; for presets that don't exist, however `require' is still needed to load
     ;; the feature, so error handling remains necessary either way.
-    (let ((preset-sym (intern (concat "hl-prog-extra-preset-" mode-value))))
-      (when (condition-case err
-                (require preset-sym nil 'noerror)
-              (error
-               (lwarn
-                'hl-prog-extra
-                :error "preset %S failed: %s" mode-value (error-message-string err))
-               nil))
+    (let ((preset-sym (intern (concat "hl-prog-extra-preset-" mode-value)))
+          (load-error nil))
+      (cond
+       ((condition-case err
+            (require preset-sym nil 'noerror)
+          (error
+           (lwarn
+            'hl-prog-extra
+            :error "preset %S failed: %s" mode-value (error-message-string err))
+           (setq load-error t)
+           nil))
         (cond
          ((fboundp preset-sym)
           (apply preset-sym args))
@@ -1061,7 +1064,14 @@ see each preset's documentation for available keywords."
            :error "preset %S loaded but did not define function `%S'" mode-value preset-sym)
           ;; The caller appends this to `hl-prog-extra-list',
           ;; returning the string from `lwarn' would create a malformed list.
-          nil))))))
+          nil)))
+       (t
+        ;; NOTE: `require' returns nil for a preset that doesn't exist without
+        ;; signaling, the common case for modes without a preset, which mode
+        ;; enabling quiets by passing QUIET, see `hl-prog-extra--mode-enable'.
+        (unless (or quiet load-error)
+          (message "hl-prog-extra: preset %S not found!" mode-value))
+        nil)))))
 
 
 ;; ---------------------------------------------------------------------------
