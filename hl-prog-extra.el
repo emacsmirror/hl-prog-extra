@@ -766,12 +766,7 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
      ((facep faceprop)
       (eq faceprop face-test))
      ((face-list-p faceprop)
-      (let ((found nil))
-        (while faceprop
-          (when (eq (pop faceprop) face-test)
-            (setq found t)
-            (setq faceprop nil)))
-        found))
+      (and (memq face-test faceprop) t))
      (t
       nil))))
 
