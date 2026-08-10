@@ -221,6 +221,24 @@ The point, bound & modification tick of the last search, as (point bound . tick)
 A group numbered above this compiles without error but is silently shy,
 so nothing can find which item matched.")
 
+(defconst hl-prog-extra--context-alist
+  (list
+   (cons 'comment (list 'comment-only 'comment-doc))
+   (cons 'comment-only (list 'comment-only))
+   (cons 'comment-doc (list 'comment-doc))
+   (cons 'string (list 'string-only 'string-doc))
+   (cons 'string-only (list 'string-only))
+   (cons 'string-doc (list 'string-doc))
+   (cons nil (list 'rest)))
+  "Alist of context symbols and the parts of the buffer each one matches in.
+Validation and the dispatch in `hl-prog-extra--precompute-regex' both read
+from this, so a context that passes validation always dispatches.")
+
+(defconst hl-prog-extra--context-symbols (mapcar #'car hl-prog-extra--context-alist)
+  "The context symbols accepted in `hl-prog-extra-list' items.
+The keys of `hl-prog-extra--context-alist', kept as a constant so
+validation doesn't rebuild the list on every call.")
+
 
 ;; ---------------------------------------------------------------------------
 ;; Generic Utilities
@@ -297,13 +315,7 @@ Matches which aren't part of the expression itself are skipped."
 (defun hl-prog-extra--validate-keyword-item (item)
   "Validate ITEM, return a message or nil on success."
   (declare (important-return-value t))
-  (let* ((item-context-valid-items
-          (list
-           'comment 'comment-only 'comment-doc ; Comments.
-           'string 'string-only 'string-doc ; Strings.
-           nil))
-
-         ;; -------------------------
+  (let* ( ;; -------------------------
          ;; Check `re', 1st argument.
 
          (validate-re-fn
@@ -374,11 +386,11 @@ Matches which aren't part of the expression itself are skipped."
             (catch 'error
               (unless (symbolp context)
                 (throw 'error (format "expected a symbol or nil, not a %S" (type-of context))))
-              (unless (memq context item-context-valid-items)
+              (unless (memq context hl-prog-extra--context-symbols)
                 (throw 'error
                        (format "unexpected symbol %S, expected a value in %S!"
                                context
-                               item-context-valid-items))))))
+                               hl-prog-extra--context-symbols))))))
 
          (validate-context-list-fn
           (lambda (context)
@@ -688,54 +700,41 @@ Return a list of (regex-list face-vector uniq-vector is-complex-comment is-compl
                 ;; These expressions are then joined to make a single regex
                 ;; (per-unique context combination) outside of this loop.
                 (let ((regex-fmt (format "\\(?%d:%s\\)" (1+ uniq-index) re))
-                      (in-comment-only nil)
-                      (in-comment-doc nil)
-                      (in-string-only nil)
-                      (in-string-doc nil)
-                      (in-rest nil))
+                      (context-parts (list)))
+                  ;; Validation reads its symbols from the same alist,
+                  ;; a context that passed it always has an entry.
                   (dolist (context-symbol context)
-                    (cond
-                     ((eq context-symbol 'comment)
-                      (setq in-comment-only t)
-                      (setq in-comment-doc t))
-                     ((eq context-symbol 'comment-only)
-                      (setq in-comment-only t))
-                     ((eq context-symbol 'comment-doc)
-                      (setq in-comment-doc t))
-                     ((eq context-symbol 'string)
-                      (setq in-string-only t)
-                      (setq in-string-doc t))
-                     ((eq context-symbol 'string-only)
-                      (setq in-string-only t))
-                     ((eq context-symbol 'string-doc)
-                      (setq in-string-doc t))
-                     ((null context-symbol)
-                      (setq in-rest t))
-                     (t ; Checked for above.
-                      (error "Invalid context %S" context-symbol))))
+                    (dolist (part (cdr (assq context-symbol hl-prog-extra--context-alist)))
+                      (push part context-parts)))
 
-                  ;; Take this from the contexts the item ends up in, not the symbols naming
-                  ;; them. An overlapping list such as `(comment comment-only)' reaches both,
-                  ;; where checking for a documentation comment can only cost time.
-                  (unless (eq in-comment-only in-comment-doc)
-                    (setq is-complex-comment t))
-                  (unless (eq in-string-only in-string-doc)
-                    (setq is-complex-string t))
-
-                  ;; NOTE: take the contexts as a set. An overlapping list such as
+                  ;; NOTE: `memq' takes the parts as a set. An overlapping list such as
                   ;; `(comment comment-only)' would otherwise name this item twice in the
                   ;; same regex, where the duplicate can never match anything the first
                   ;; doesn't, but its groups still take numbers no item reserved.
-                  (when in-comment-only
-                    (push regex-fmt re-comment-only))
-                  (when in-comment-doc
-                    (push regex-fmt re-comment-doc))
-                  (when in-string-only
-                    (push regex-fmt re-string-only))
-                  (when in-string-doc
-                    (push regex-fmt re-string-doc))
-                  (when in-rest
-                    (push regex-fmt re-rest)))))))))
+                  (let ((in-comment-only (and (memq 'comment-only context-parts) t))
+                        (in-comment-doc (and (memq 'comment-doc context-parts) t))
+                        (in-string-only (and (memq 'string-only context-parts) t))
+                        (in-string-doc (and (memq 'string-doc context-parts) t))
+                        (in-rest (and (memq 'rest context-parts) t)))
+
+                    ;; Take this from the parts the item ends up in, not the symbols naming
+                    ;; them. An overlapping list such as `(comment comment-only)' reaches both,
+                    ;; where checking for a documentation comment can only cost time.
+                    (unless (eq in-comment-only in-comment-doc)
+                      (setq is-complex-comment t))
+                    (unless (eq in-string-only in-string-doc)
+                      (setq is-complex-string t))
+
+                    (when in-comment-only
+                      (push regex-fmt re-comment-only))
+                    (when in-comment-doc
+                      (push regex-fmt re-comment-doc))
+                    (when in-string-only
+                      (push regex-fmt re-string-only))
+                    (when in-string-doc
+                      (push regex-fmt re-string-doc))
+                    (when in-rest
+                      (push regex-fmt re-rest))))))))))
 
         (incf item-index))
 
