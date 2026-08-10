@@ -1091,7 +1091,18 @@ INLINE-STYLE resolves named faces to their attributes."
               ;; An empty list of faces.
               (list "\\(a\\)" (list 1) 'comment nil)
               ;; A nil face.
-              (list "\\<XX\\>" 0 'comment nil)))
+              (list "\\<XX\\>" 0 'comment nil)
+              ;; A regex numbering its own groups.
+              (list "\\(?1:XX\\)" 0 'comment 'hl-prog-extra-test-a)
+              ;; A regex using a back reference.
+              (list "\\([a-z]\\)\\1" 0 'comment 'hl-prog-extra-test-a)
+              ;; A negative group.
+              (list "\\<XX\\>" -1 'comment 'hl-prog-extra-test-a)
+              ;; A face list shorter than the group list.
+              (list "\\([a-z]+\\)=\\([a-z]+\\)" (list 1 2) 'comment
+                    (list 'hl-prog-extra-test-a))
+              ;; A list containing an unknown context.
+              (list "\\<XX\\>" 0 (list 'unknown-context) 'hl-prog-extra-test-a)))
       (ert-info
        ((format "rule %S" rule))
        (should (stringp (hl-prog-extra--validate-keyword-item rule)))

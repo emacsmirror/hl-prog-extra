@@ -154,6 +154,14 @@ Modifying this while the variable `hl-prog-extra-mode' is enabled requires calli
          (lambda (widget value) (and value (widget-editable-list-match widget value)))))
     `(repeat
       (list
+       ;; The widgets check each field alone, which lets some invalid values through:
+       ;; a regex numbering its own groups, a negative group, a face list whose length
+       ;; doesn't match the group list. Check the rule as a whole with the validation
+       ;; the mode runs, so the widgets can't accept a rule that is then skipped.
+       :match
+       ,(lambda (widget value)
+          (and (widget-group-match widget value)
+               (null (hl-prog-extra--validate-keyword-item value))))
        regexp
        (choice
         (integer :tag "Group")
